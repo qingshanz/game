@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>⚖️ 比一比 · 小朋友学比较</title>
+<style>
+  :root { --shadow: rgba(0,0,0,.14); }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Comic Sans MS", system-ui, sans-serif;
+    background: linear-gradient(160deg, #d9f0ff, #ffe6f0);
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 12px 12px 24px; color: #00838f; user-select: none;
+  }
+  h1 { font-size: clamp(22px, 5.6vw, 38px); margin: 2px 0; text-shadow: 2px 2px 0 #fff; text-align: center; }
+  .tip {
+    font-size: clamp(15px, 3.6vw, 20px); margin: 8px 0; background: #fff;
+    padding: 8px 16px; border-radius: 999px; box-shadow: 0 3px 10px var(--shadow);
+    min-height: 1.4em; text-align: center; color: #455a64; max-width: 92vw;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+  .pick-btn {
+    font-size: clamp(13px, 3.6vw, 18px); font-weight: 700; padding: 8px 14px;
+    border: none; border-radius: 16px; background: #fff; color: #00838f;
+    cursor: pointer; box-shadow: 0 4px 0 #a5dde3; transition: transform .08s, background .2s;
+  }
+  .pick-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a5dde3; }
+  .pick-btn.active { background: #26c6da; box-shadow: 0 4px 0 #00838f; color: #fff; }
+
+  .question { font-size: clamp(22px, 6.5vw, 34px); font-weight: 800; color: #d81b60; margin: 6px 0 10px; text-shadow: 1px 1px 0 #fff; }
+
+  .arena { display: flex; gap: clamp(10px, 4vw, 28px); width: min(94vw, 460px); margin-bottom: 12px; }
+  .side {
+    flex: 1; min-height: clamp(180px, 40vh, 240px);
+    background: #fff; border: 4px solid #e0f7fa; border-radius: 22px;
+    box-shadow: 0 6px 18px var(--shadow); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; padding: 12px;
+    transition: transform .08s, border-color .15s;
+  }
+  .side:active { transform: scale(.97); }
+  .side.right { border-color: #66bb6a; background: #e8f5e9; animation: pop .5s; }
+  .side.wrong { border-color: #ef5350; background: #ffebee; animation: shake .35s; }
+  @keyframes pop { 0%{transform:scale(1)} 50%{transform:scale(1.06)} 100%{transform:scale(1)} }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+
+  .cluster { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; justify-content: center; line-height: 1; }
+  .bar-v { width: clamp(46px, 14vw, 72px); border-radius: 12px 12px 6px 6px; }
+  .bar-h { height: clamp(34px, 10vw, 52px); border-radius: 6px 12px 12px 6px; }
+
+  .score { font-size: clamp(16px, 4.2vw, 21px); font-weight: 800; color: #f57f17; margin-top: 4px; }
+  .tools { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
+  .tool-btn {
+    font-size: clamp(15px, 4vw, 19px); font-weight: 700; padding: 11px 22px;
+    border: none; border-radius: 16px; background: #ffd54f; color: #6d4c41;
+    cursor: pointer; box-shadow: 0 4px 0 #f9a825;
+  }
+  .tool-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #f9a825; }
+
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+  .star { position: fixed; top: -40px; font-size: 28px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .9; } }
+</style>
+</head>
+<body>
+  <h1>⚖️ 郑直的比一比 📏</h1>
+  <div class="tip" id="tip">看看两边，点出对的那一个！</div>
+
+  <div class="row" id="modes">
+    <button class="pick-btn active" data-m="size">🔵 比大小</button>
+    <button class="pick-btn" data-m="count">🍎 比多少</button>
+    <button class="pick-btn" data-m="height">📏 比高矮</button>
+    <button class="pick-btn" data-m="length">➖ 比长短</button>
+  </div>
+  <div class="row" id="levels">
+    <button class="pick-btn active" data-l="easy">🐣 简单</button>
+    <button class="pick-btn" data-l="mid">🐰 普通</button>
+    <button class="pick-btn" data-l="hard">🦁 挑战</button>
+  </div>
+
+  <div class="question" id="question">哪个更大？</div>
+
+  <div class="arena">
+    <div class="side" id="sideL" data-side="L"></div>
+    <div class="side" id="sideR" data-side="R"></div>
+  </div>
+
+  <div class="score" id="score">🌟 连对 0 个</div>
+
+  <div class="tools">
+    <button class="tool-btn" id="speakBtn">🔊 再读一遍</button>
+    <button class="tool-btn" id="newBtn">🔄 换一题</button>
+  </div>
+
+  <div id="confetti"></div>
+
+<script>
+/* =======================================================================
+   比一比 —— 数学前比较概念
+   比大小 / 比多少 / 比高矮 / 比长短 四种比较。
+   锻炼学前儿童的量感、比较概念与数学启蒙。
+   ======================================================================= */
+
+const CHILD_NAME = "郑直";
+const EMOJI = ["🎈","🍎","⭐","🐱","🌸","🚗","🦋","🍓","🐶","🌻","🍊","🐸"];
+const COLORS = ["#ef5350","#42a5f5","#66bb6a","#ab47bc","#ffa726","#26c6da","#ec407a"];
+
+let mode = "size";
+let level = "easy";
+let answerSide = "L";
+let streak = 0;
+let locked = false;
+let curQuestion = "";
+
+// 各模式 + 极性的问题文字
+const QTEXT = {
+  size:   { max: "哪个更大？", min: "哪个更小？" },
+  count:  { max: "哪边更多？", min: "哪边更少？" },
+  height: { max: "哪个更高？", min: "哪个更矮？" },
+  length: { max: "哪个更长？", min: "哪个更短？" },
+};
+
+// ---------- 音效 ----------
+let actx = null;
+function beep(freq, dur = 0.12, type = "sine", vol = 0.15) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(vol, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+function playWin() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.18, "triangle", 0.2), i * 150)); }
+
+// ---------- 语音 ----------
+let chosenVoice = null;
+function loadVoices() {
+  const zh = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith("zh"));
+  let p = zh.findIndex(v => v.localService && /tingting|婷婷|meijia|美佳|female|女/i.test(v.name));
+  if (p < 0) p = zh.findIndex(v => v.localService);
+  if (p < 0) p = 0;
+  chosenVoice = zh[p] || null;
+}
+if ("speechSynthesis" in window) { speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "zh-CN"; if (chosenVoice) u.voice = chosenVoice;
+    u.rate = 0.9; u.pitch = 1.05; speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+function rnd(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+// ---------- 出新题 ----------
+function newQuestion() {
+  locked = false;
+  document.getElementById("sideL").className = "side";
+  document.getElementById("sideR").className = "side";
+
+  // 极性：简单只问正向，普通/挑战随机正反
+  const polarity = (level === "easy" || Math.random() < 0.5) ? "max" : "min";
+  curQuestion = QTEXT[mode][polarity];
+  document.getElementById("question").textContent = curQuestion;
+
+  let big, small, leftHTML, rightHTML, alignBottom = false;
+
+  if (mode === "size") {
+    big = rnd(82, 120);
+    const delta = level === "easy" ? rnd(48, 56) : level === "mid" ? rnd(28, 36) : rnd(14, 20);
+    small = Math.max(30, big - delta);
+    const em = pick(EMOJI);
+    leftHTML = v => `<div style="font-size:${v}px;line-height:1">${em}</div>`;
+    rightHTML = leftHTML;
+  } else if (mode === "count") {
+    big = rnd(5, 9);
+    const delta = level === "easy" ? rnd(3, 4) : level === "mid" ? 2 : 1;
+    small = Math.max(1, big - delta);
+    const em = pick(EMOJI);
+    const cluster = v => `<div class="cluster" style="font-size:clamp(24px,7vw,38px);max-width:90%">${em.repeat(v)}</div>`;
+    leftHTML = cluster; rightHTML = cluster;
+  } else if (mode === "height") {
+    big = rnd(120, 180);
+    const delta = level === "easy" ? rnd(64, 74) : level === "mid" ? rnd(40, 48) : rnd(22, 28);
+    small = Math.max(40, big - delta);
+    const cl = pick(COLORS), cr = pick(COLORS);
+    leftHTML = v => `<div class="bar-v" style="height:${v}px;background:${cl}"></div>`;
+    rightHTML = v => `<div class="bar-v" style="height:${v}px;background:${cr}"></div>`;
+    alignBottom = true;
+  } else { // length
+    big = rnd(130, 200);
+    const delta = level === "easy" ? rnd(70, 80) : level === "mid" ? rnd(44, 52) : rnd(24, 30);
+    small = Math.max(45, big - delta);
+    const cl = pick(COLORS), cr = pick(COLORS);
+    leftHTML = v => `<div class="bar-h" style="width:${v}px;background:${cl}"></div>`;
+    rightHTML = v => `<div class="bar-h" style="width:${v}px;background:${cr}"></div>`;
+  }
+
+  // 随机分配大值到左或右
+  const bigOnLeft = Math.random() < 0.5;
+  const lVal = bigOnLeft ? big : small;
+  const rVal = bigOnLeft ? small : big;
+  const bigSide = bigOnLeft ? "L" : "R";
+  answerSide = polarity === "max" ? bigSide : (bigSide === "L" ? "R" : "L");
+
+  const sideL = document.getElementById("sideL"), sideR = document.getElementById("sideR");
+  sideL.style.alignItems = alignBottom ? "flex-end" : "center";
+  sideR.style.alignItems = alignBottom ? "flex-end" : "center";
+  sideL.innerHTML = leftHTML(lVal);
+  sideR.innerHTML = rightHTML(rVal);
+
+  setTip("看看两边，点出对的那一个！👆");
+  speak(curQuestion);
+}
+
+// ---------- 判题 ----------
+function choose(side, el) {
+  if (locked) return;
+  if (side === answerSide) {
+    locked = true;
+    el.classList.add("right");
+    streak++;
+    document.getElementById("score").textContent = `🌟 连对 ${streak} 个`;
+    setTip("答对啦！你真会比较 🎉");
+    beep(660, 0.12, "triangle"); playWin(); confetti();
+    speak(`${CHILD_NAME}答对啦`);
+    setTimeout(newQuestion, 1700);
+  } else {
+    el.classList.add("wrong");
+    beep(220, 0.12, "square");
+    streak = 0;
+    document.getElementById("score").textContent = `🌟 连对 ${streak} 个`;
+    setTip("再看看两边，比一比 🤔");
+    speak("再比一比看看");
+    setTimeout(() => el.classList.remove("wrong"), 450);
+  }
+}
+
+// ---------- 撒花 ----------
+function confetti() {
+  const box = document.getElementById("confetti");
+  const emojis = ["🌟","🎉","⭐","⚖️","🎈","💖","✨","📏"];
+  for (let i = 0; i < 34; i++) {
+    const s = document.createElement("div");
+    s.className = "star";
+    s.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = (1.6 + Math.random() * 1.8) + "s";
+    box.appendChild(s);
+    setTimeout(() => s.remove(), 3500);
+  }
+}
+
+function setTip(t) { document.getElementById("tip").textContent = t; }
+
+// ---------- 事件 ----------
+document.getElementById("sideL").onclick = function () { choose("L", this); };
+document.getElementById("sideR").onclick = function () { choose("R", this); };
+document.getElementById("modes").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#modes .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  mode = btn.dataset.m; beep(600, 0.1); newQuestion();
+});
+document.getElementById("levels").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#levels .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  level = btn.dataset.l; beep(520, 0.1); newQuestion();
+});
+document.getElementById("speakBtn").onclick = () => speak(curQuestion);
+document.getElementById("newBtn").onclick = () => { beep(520, 0.1); newQuestion(); };
+
+// 启动
+newQuestion();
+</script>
+</body>
+</html>

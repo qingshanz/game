@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>📖 识字大闯关 · 小朋友学汉字</title>
+<style>
+  :root {
+    --bg1: #cdeccf;
+    --bg2: #cfe8ff;
+    --shadow: rgba(0,0,0,.14);
+    --right: #66bb6a;
+    --wrong: #ef5350;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Kaiti SC", "STKaiti", "Comic Sans MS", system-ui, sans-serif;
+    background: linear-gradient(160deg, var(--bg1), var(--bg2));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 12px 12px 24px;
+    color: #2e7d32;
+    user-select: none;
+  }
+  h1 {
+    font-size: clamp(22px, 5.6vw, 38px);
+    margin: 2px 0;
+    text-shadow: 2px 2px 0 #fff;
+    text-align: center;
+  }
+  .tip {
+    font-size: clamp(15px, 3.6vw, 20px);
+    margin: 8px 0;
+    background: #fff;
+    padding: 8px 16px;
+    border-radius: 999px;
+    box-shadow: 0 3px 10px var(--shadow);
+    min-height: 1.4em;
+    text-align: center;
+    color: #455a64;
+    max-width: 92vw;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+  .pick-btn {
+    font-size: clamp(13px, 3.6vw, 18px);
+    font-weight: 700;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 16px;
+    background: #fff;
+    color: #2e7d32;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #aed6b0;
+    transition: transform .08s, box-shadow .08s, background .2s;
+  }
+  .pick-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #aed6b0; }
+  .pick-btn.active { background: #66bb6a; box-shadow: 0 4px 0 #388e3c; color: #fff; }
+
+  /* 题目区 */
+  .stage {
+    background: #fff;
+    border-radius: 26px;
+    box-shadow: 0 8px 22px var(--shadow);
+    padding: 18px 26px;
+    margin: 8px 0 14px;
+    text-align: center;
+    min-width: min(70vw, 260px);
+  }
+  .stage .big-emoji { font-size: clamp(72px, 22vw, 130px); line-height: 1.1; }
+  .stage .big-han {
+    font-size: clamp(80px, 26vw, 150px);
+    font-weight: 800; color: #d84315; line-height: 1.05; cursor: pointer;
+  }
+  .stage .pinyin { font-size: clamp(20px, 5vw, 30px); color: #1e88e5; font-weight: 700; letter-spacing: 1px; }
+  .stage .hint-q { font-size: clamp(16px, 4vw, 22px); color: #607d8b; margin-top: 6px; }
+
+  /* 选项 */
+  .options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: min(92vw, 420px); }
+  .opt {
+    border: none; border-radius: 18px; cursor: pointer;
+    background: #fff; box-shadow: 0 5px 0 #00000018;
+    padding: 14px 8px; transition: transform .08s;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .opt:active { transform: translateY(3px); }
+  .opt .o-han { font-size: clamp(34px, 10vw, 52px); font-weight: 800; color: #4e342e; line-height: 1; }
+  .opt .o-pin { font-size: clamp(13px, 3.4vw, 17px); color: #1e88e5; font-weight: 700; }
+  .opt .o-emoji { font-size: clamp(40px, 12vw, 60px); line-height: 1; }
+  .opt.correct { background: var(--right); }
+  .opt.correct .o-han, .opt.correct .o-pin { color: #fff; }
+  .opt.correct { animation: pop .5s; }
+  .opt.wrong { background: var(--wrong); animation: shake .35s; }
+  .opt.wrong .o-han, .opt.wrong .o-pin { color: #fff; }
+  .opt:disabled { opacity: .6; }
+
+  .tools { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+  .tool-btn {
+    font-size: clamp(15px, 4vw, 19px);
+    font-weight: 700;
+    padding: 11px 22px;
+    border: none;
+    border-radius: 16px;
+    background: #80d8ff;
+    color: #01579b;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #4fc3f7;
+  }
+  .tool-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #4fc3f7; }
+  .tool-btn.speak { background: #ffd54f; color: #6d4c41; box-shadow: 0 4px 0 #f9a825; }
+  .score { font-size: clamp(16px, 4.2vw, 21px); font-weight: 800; color: #f57f17; margin-top: 10px; }
+
+  @keyframes pop { 0%{transform:scale(1)} 50%{transform:scale(1.16)} 100%{transform:scale(1)} }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+  .star { position: fixed; top: -40px; font-size: 28px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .9; } }
+</style>
+</head>
+<body>
+  <h1>📖 郑直的识字大闯关 🎓</h1>
+  <div class="tip" id="tip">看图认字，选出对的汉字吧！</div>
+
+  <div class="row" id="modes">
+    <button class="pick-btn active" data-m="pic2word">🖼️ 看图选字</button>
+    <button class="pick-btn" data-m="word2pic">🔤 看字选图</button>
+  </div>
+  <div class="row" id="topics">
+    <button class="pick-btn active" data-t="nature">🌿 大自然</button>
+    <button class="pick-btn" data-t="animal">🐾 小动物</button>
+    <button class="pick-btn" data-t="thing">🧸 物品</button>
+    <button class="pick-btn" data-t="body">👶 身体</button>
+  </div>
+
+  <div class="stage" id="stage"></div>
+  <div class="options" id="options"></div>
+
+  <div class="tools">
+    <button class="tool-btn speak" id="speakBtn">🔊 再读一遍</button>
+    <button class="tool-btn" id="newBtn">🔄 换一题</button>
+  </div>
+  <div class="score" id="score">🌟 已认识 0 个字</div>
+
+  <div id="confetti"></div>
+
+<script>
+/* =======================================================================
+   识字大闯关 —— 学常用汉字
+   两种模式：看图选字 / 看字选图。点汉字可朗读，巩固字音字形。
+   ======================================================================= */
+
+const CHILD_NAME = "郑直";
+
+// 词库：每个字 z=汉字, e=图案, p=拼音。emoji 与单字对应清晰直观。
+const TOPICS = {
+  nature: { name: "大自然", list: [
+    {z:"日",e:"☀️",p:"rì"},{z:"月",e:"🌙",p:"yuè"},{z:"水",e:"💧",p:"shuǐ"},
+    {z:"火",e:"🔥",p:"huǒ"},{z:"山",e:"⛰️",p:"shān"},{z:"花",e:"🌸",p:"huā"},
+    {z:"树",e:"🌳",p:"shù"},{z:"雨",e:"🌧️",p:"yǔ"},{z:"云",e:"☁️",p:"yún"},
+    {z:"星",e:"⭐",p:"xīng"},{z:"雪",e:"❄️",p:"xuě"},{z:"草",e:"🌱",p:"cǎo"},
+  ]},
+  animal: { name: "小动物", list: [
+    {z:"猫",e:"🐱",p:"māo"},{z:"狗",e:"🐶",p:"gǒu"},{z:"鱼",e:"🐟",p:"yú"},
+    {z:"鸟",e:"🐦",p:"niǎo"},{z:"兔",e:"🐰",p:"tù"},{z:"马",e:"🐴",p:"mǎ"},
+    {z:"虎",e:"🐯",p:"hǔ"},{z:"熊",e:"🐻",p:"xióng"},{z:"羊",e:"🐑",p:"yáng"},
+    {z:"猪",e:"🐷",p:"zhū"},{z:"鸡",e:"🐔",p:"jī"},{z:"牛",e:"🐮",p:"niú"},
+  ]},
+  thing: { name: "物品", list: [
+    {z:"车",e:"🚗",p:"chē"},{z:"船",e:"⛵",p:"chuán"},{z:"伞",e:"☂️",p:"sǎn"},
+    {z:"灯",e:"💡",p:"dēng"},{z:"书",e:"📚",p:"shū"},{z:"笔",e:"✏️",p:"bǐ"},
+    {z:"钟",e:"🕐",p:"zhōng"},{z:"床",e:"🛏️",p:"chuáng"},{z:"门",e:"🚪",p:"mén"},
+    {z:"鞋",e:"👟",p:"xié"},{z:"帽",e:"🎩",p:"mào"},{z:"球",e:"⚽",p:"qiú"},
+  ]},
+  body: { name: "身体", list: [
+    {z:"手",e:"✋",p:"shǒu"},{z:"眼",e:"👁️",p:"yǎn"},{z:"口",e:"👄",p:"kǒu"},
+    {z:"耳",e:"👂",p:"ěr"},{z:"脚",e:"🦶",p:"jiǎo"},{z:"鼻",e:"👃",p:"bí"},
+    {z:"牙",e:"🦷",p:"yá"},{z:"发",e:"💇",p:"fà"},{z:"舌",e:"👅",p:"shé"},
+    {z:"心",e:"❤️",p:"xīn"},{z:"骨",e:"🦴",p:"gǔ"},{z:"脸",e:"😀",p:"liǎn"},
+  ]},
+};
+
+let mode = "pic2word";   // pic2word | word2pic
+let topic = "nature";
+let target = null;       // 当前正确词条
+let locked = false;
+let score = 0;
+
+// ---------- 音效 ----------
+let actx = null;
+function beep(freq, dur = 0.12, type = "sine", vol = 0.15) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(vol, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+function playWin() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.18, "triangle", 0.2), i * 150)); }
+
+// ---------- 语音 ----------
+let chosenVoice = null;
+function loadVoices() {
+  const zh = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith("zh"));
+  let p = zh.findIndex(v => v.localService && /tingting|婷婷|meijia|美佳|female|女/i.test(v.name));
+  if (p < 0) p = zh.findIndex(v => v.localService);
+  if (p < 0) p = 0;
+  chosenVoice = zh[p] || null;
+}
+if ("speechSynthesis" in window) { speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "zh-CN"; if (chosenVoice) u.voice = chosenVoice;
+    u.rate = 0.8; u.pitch = 1.05;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ---------- 出新题 ----------
+function newQuestion() {
+  locked = false;
+  const list = TOPICS[topic].list;
+  target = list[Math.floor(Math.random() * list.length)];
+  // 3 个同主题干扰项
+  const distractors = shuffle(list.filter(w => w.z !== target.z)).slice(0, 3);
+  const opts = shuffle([target, ...distractors]);
+
+  const stage = document.getElementById("stage");
+  const box = document.getElementById("options");
+  box.innerHTML = "";
+
+  if (mode === "pic2word") {
+    // 看图选字
+    stage.innerHTML = `<div class="big-emoji">${target.e}</div>
+                       <div class="hint-q">这是什么字？</div>`;
+    opts.forEach(w => {
+      const b = document.createElement("button");
+      b.className = "opt";
+      b.innerHTML = `<span class="o-han">${w.z}</span><span class="o-pin">${w.p}</span>`;
+      b.onclick = () => check(w, b);
+      box.appendChild(b);
+    });
+    setTip("看图片，选出对应的汉字 😊");
+    speak("这是什么字呀？");
+  } else {
+    // 看字选图
+    stage.innerHTML = `<div class="big-han" id="bigHan">${target.z}</div>
+                       <div class="pinyin">${target.p}</div>
+                       <div class="hint-q">点字可以听读音 · 找出对应的图片</div>`;
+    document.getElementById("bigHan").onclick = () => speak(target.z);
+    opts.forEach(w => {
+      const b = document.createElement("button");
+      b.className = "opt";
+      b.innerHTML = `<span class="o-emoji">${w.e}</span>`;
+      b.onclick = () => check(w, b);
+      box.appendChild(b);
+    });
+    setTip(`找一找：「${target.z}」是哪一个？`);
+    speak(target.z);
+  }
+}
+
+// ---------- 判题 ----------
+function check(w, btn) {
+  if (locked) return;
+  if (w.z === target.z) {
+    locked = true;
+    btn.classList.add("correct");
+    [...document.getElementById("options").children].forEach(b => b.disabled = true);
+    score++;
+    document.getElementById("score").textContent = `🌟 已认识 ${score} 个字`;
+    setTip(`答对啦！这是「${target.z}」${target.p} 🎉`, "#c8f7c5");
+    beep(660, 0.12, "triangle"); playWin(); confetti();
+    speak(`答对了！${target.z}`);
+    setTimeout(newQuestion, 1900);
+  } else {
+    btn.classList.add("wrong");
+    beep(220, 0.12, "square");
+    setTip("不是这个哦，再看看 🤔");
+    speak("再看看，试一次");
+    setTimeout(() => { btn.classList.remove("wrong"); btn.disabled = false; }, 500);
+    btn.disabled = true;
+  }
+}
+
+// ---------- 撒花 ----------
+function confetti() {
+  const box = document.getElementById("confetti");
+  const emojis = ["🌟","🎉","⭐","🎈","💖","✨","📖","🎓"];
+  for (let i = 0; i < 36; i++) {
+    const s = document.createElement("div");
+    s.className = "star";
+    s.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = (1.6 + Math.random() * 1.8) + "s";
+    s.style.animationDelay = Math.random() * 0.5 + "s";
+    box.appendChild(s);
+    setTimeout(() => s.remove(), 3500);
+  }
+}
+
+// ---------- 提示文字 ----------
+function setTip(t, bg) {
+  const el = document.getElementById("tip");
+  el.textContent = t;
+  el.style.background = bg || "#fff";
+}
+
+// ---------- 朗读当前题 ----------
+function speakCurrent() {
+  if (!target) return;
+  if (mode === "pic2word") speak("这是什么字呀？");
+  else speak(target.z);
+}
+
+// ---------- 事件 ----------
+document.getElementById("modes").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#modes .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  mode = btn.dataset.m; beep(600, 0.1); newQuestion();
+});
+document.getElementById("topics").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#topics .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  topic = btn.dataset.t; beep(520, 0.1); newQuestion();
+});
+document.getElementById("speakBtn").onclick = speakCurrent;
+document.getElementById("newBtn").onclick = () => { beep(520, 0.1); newQuestion(); };
+
+// 启动
+newQuestion();
+</script>
+</body>
+</html>

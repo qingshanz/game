@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🎵 节奏听辨 · 小朋友学听音</title>
+<style>
+  :root { --shadow: rgba(0,0,0,.18); }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Comic Sans MS", system-ui, sans-serif;
+    background: linear-gradient(160deg, #2b1055, #7597de);
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 12px 12px 24px; color: #fff; user-select: none;
+  }
+  h1 { font-size: clamp(22px, 5.6vw, 38px); margin: 2px 0; text-shadow: 2px 2px 0 #00000040; text-align: center; }
+  .tip {
+    font-size: clamp(15px, 3.6vw, 20px); margin: 8px 0; background: #ffffff22;
+    padding: 8px 16px; border-radius: 999px; min-height: 1.4em; text-align: center;
+    max-width: 92vw; backdrop-filter: blur(4px);
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+  .pick-btn {
+    font-size: clamp(13px, 3.6vw, 18px); font-weight: 700; padding: 8px 14px;
+    border: none; border-radius: 16px; background: #ffffff22; color: #fff;
+    cursor: pointer; transition: transform .08s, background .2s;
+  }
+  .pick-btn:active { transform: translateY(2px); }
+  .pick-btn.active { background: #ffd54f; color: #4527a0; }
+
+  .level-badge { font-size: clamp(18px, 5vw, 26px); font-weight: 800; margin: 6px 0 10px; text-shadow: 1px 1px 0 #00000040; }
+
+  /* 发声方块 2×2 */
+  .pads {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: clamp(10px, 3vw, 18px);
+    width: min(80vw, 46vh, 360px); margin: 4px 0 16px;
+  }
+  .pad {
+    aspect-ratio: 1; border-radius: 24px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(40px, 12vw, 64px);
+    box-shadow: 0 6px 0 #00000040, inset 0 0 30px #ffffff20;
+    opacity: .72; transition: opacity .12s, transform .1s, box-shadow .1s;
+    border: 4px solid #ffffff30;
+  }
+  .pad:active { transform: translateY(3px); }
+  .pad.active { opacity: 1; transform: scale(1.06); box-shadow: 0 6px 0 #00000040, 0 0 40px 6px #ffffffaa, inset 0 0 30px #ffffff60; border-color: #fff; }
+
+  .tools { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .tool-btn {
+    font-size: clamp(15px, 4vw, 20px); font-weight: 700; padding: 12px 24px;
+    border: none; border-radius: 16px; background: #ffd54f; color: #4527a0;
+    cursor: pointer; box-shadow: 0 5px 0 #c79a00;
+  }
+  .tool-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #c79a00; }
+  .tool-btn.ghost { background: #ffffff22; color: #fff; box-shadow: 0 5px 0 #00000030; }
+
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+  .star { position: fixed; top: -40px; font-size: 28px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .9; } }
+</style>
+</head>
+<body>
+  <h1>🎵 郑直的节奏听辨 🎹</h1>
+  <div class="tip" id="tip">点「开始」，听一段节奏，再照着点一遍！</div>
+
+  <div class="row" id="modes">
+    <button class="pick-btn active" data-m="simon">🧠 跟我做</button>
+    <button class="pick-btn" data-m="free">🎹 自由弹</button>
+  </div>
+  <div class="row" id="themes">
+    <button class="pick-btn active" data-t="color">🌈 彩色键</button>
+    <button class="pick-btn" data-t="animal">🐾 动物音</button>
+  </div>
+  <div class="row" id="speeds">
+    <button class="pick-btn" data-s="slow">🐢 慢</button>
+    <button class="pick-btn active" data-s="mid">🐇 中</button>
+    <button class="pick-btn" data-s="fast">🐆 快</button>
+  </div>
+
+  <div class="level-badge" id="badge">准备好了吗？</div>
+
+  <div class="pads" id="pads"></div>
+
+  <div class="tools">
+    <button class="tool-btn" id="startBtn">▶️ 开始</button>
+    <button class="tool-btn ghost" id="replayBtn">🔁 再听一遍</button>
+  </div>
+
+  <div id="confetti"></div>
+
+<script>
+/* =======================================================================
+   节奏听辨 —— 听音复现（类 Simon）
+   机器播放一段越来越长的节奏序列，孩子照着点出来。
+   锻炼学前儿童的听觉记忆、节奏感与专注力。
+   ======================================================================= */
+
+const CHILD_NAME = "郑直";
+
+// 四个发声键：颜色 + 动物外观，音高构成悦耳的 do-mi-sol-do
+const PADS = [
+  { color: "#e53935", emoji: "🐱", freq: 523.25 }, // C5
+  { color: "#fdd835", emoji: "🐶", freq: 659.25 }, // E5
+  { color: "#43a047", emoji: "🐸", freq: 784.00 }, // G5
+  { color: "#1e88e5", emoji: "🦆", freq: 1046.5 }, // C6
+];
+
+const SPEEDS = {
+  slow: { flash: 520, gap: 320 },
+  mid:  { flash: 400, gap: 200 },
+  fast: { flash: 300, gap: 120 },
+};
+
+let mode = "simon";    // simon | free
+let theme = "color";   // color | animal
+let speed = "mid";
+let seq = [];          // 序列（pad 索引）
+let step = 0;          // 当前复现到第几个
+let playing = false;   // 机器演示中，锁输入
+let started = false;
+let padEls = [];
+
+// ---------- 音效 ----------
+let actx = null;
+function ensureCtx() { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); return actx; }
+function tone(freq, dur = 0.4, vol = 0.22) {
+  try {
+    const ctx = ensureCtx();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "sine"; o.frequency.value = freq;
+    o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+    o.start(); o.stop(ctx.currentTime + dur + 0.02);
+  } catch (e) {}
+}
+function buzz() { tone(150, 0.3, 0.18); }
+function playWin() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.22, 0.22), i * 130)); }
+
+// ---------- 语音 ----------
+let chosenVoice = null;
+function loadVoices() {
+  const zh = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith("zh"));
+  let p = zh.findIndex(v => v.localService && /tingting|婷婷|meijia|美佳|female|女/i.test(v.name));
+  if (p < 0) p = zh.findIndex(v => v.localService);
+  if (p < 0) p = 0;
+  chosenVoice = zh[p] || null;
+}
+if ("speechSynthesis" in window) { speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "zh-CN"; if (chosenVoice) u.voice = chosenVoice;
+    u.rate = 0.9; u.pitch = 1.05; speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+// ---------- 渲染方块 ----------
+function renderPads() {
+  const box = document.getElementById("pads");
+  box.innerHTML = "";
+  padEls = PADS.map((p, i) => {
+    const d = document.createElement("div");
+    d.className = "pad";
+    d.style.background = p.color;
+    d.textContent = theme === "animal" ? p.emoji : "";
+    d.onclick = () => onPadClick(i);
+    box.appendChild(d);
+    return d;
+  });
+}
+
+// ---------- 点亮 + 发声 ----------
+function flash(idx, dur) {
+  return new Promise(res => {
+    const pad = padEls[idx];
+    pad.classList.add("active");
+    tone(PADS[idx].freq, dur / 1000 + 0.05);
+    setTimeout(() => { pad.classList.remove("active"); res(); }, dur);
+  });
+}
+function quickHit(idx) {
+  const pad = padEls[idx];
+  pad.classList.add("active");
+  tone(PADS[idx].freq, 0.32);
+  setTimeout(() => pad.classList.remove("active"), 220);
+}
+
+// ---------- 播放序列 ----------
+async function playSeq() {
+  if (mode !== "simon") return;
+  playing = true;
+  setTip("仔细听，记住顺序哦 👂");
+  await delay(450);
+  const sp = SPEEDS[speed];
+  for (const idx of seq) {
+    await flash(idx, sp.flash);
+    await delay(sp.gap);
+  }
+  playing = false;
+  step = 0;
+  setTip("换你啦！照着点一遍 👆");
+}
+
+// ---------- 新一轮（序列 +1） ----------
+function nextRound() {
+  seq.push(Math.floor(Math.random() * 4));
+  updateBadge();
+  playSeq();
+}
+function updateBadge() {
+  document.getElementById("badge").textContent = `🎯 第 ${seq.length} 关 · ${seq.length} 个音`;
+}
+
+// ---------- 点击方块 ----------
+function onPadClick(i) {
+  ensureCtx();
+  if (mode === "free") { quickHit(i); return; }
+  if (playing || !started) return;
+
+  quickHit(i);
+  if (i === seq[step]) {
+    step++;
+    if (step === seq.length) {
+      // 本轮全部答对
+      celebrate();
+      setTip(pick(["太棒了！再来一关 🎉", "节奏感真好！👏", "全对啦，继续！⭐"]));
+      speak(`${CHILD_NAME}真棒`);
+      setTimeout(nextRound, 1100);
+    }
+  } else {
+    // 点错：重听本轮
+    playing = true;
+    buzz();
+    setTip("哎呀点错啦，再仔细听一遍 🤔");
+    speak("没关系，再听一遍");
+    setTimeout(() => playSeq(), 1100);
+  }
+}
+function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+// ---------- 开始 ----------
+function startGame() {
+  ensureCtx();
+  started = true;
+  seq = [];
+  step = 0;
+  playing = false;
+  nextRound();
+}
+
+// ---------- 撒花 ----------
+function celebrate() {
+  playWin();
+  const box = document.getElementById("confetti");
+  const emojis = ["🎵","🎶","🌟","🎉","⭐","🎈","✨","🎹"];
+  for (let i = 0; i < 30; i++) {
+    const s = document.createElement("div");
+    s.className = "star";
+    s.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = (1.5 + Math.random() * 1.6) + "s";
+    box.appendChild(s);
+    setTimeout(() => s.remove(), 3300);
+  }
+}
+
+function setTip(t) { document.getElementById("tip").textContent = t; }
+
+// ---------- 事件 ----------
+document.getElementById("modes").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#modes .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  mode = btn.dataset.m; started = false; playing = false; seq = [];
+  if (mode === "free") {
+    document.getElementById("badge").textContent = "🎹 自由弹一弹吧！";
+    setTip("点方块就能发出声音，弹首小曲子吧 🎶");
+  } else {
+    document.getElementById("badge").textContent = "准备好了吗？";
+    setTip("点「开始」，听一段节奏，再照着点一遍！");
+  }
+});
+document.getElementById("themes").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#themes .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  theme = btn.dataset.t; renderPads();
+});
+document.getElementById("speeds").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#speeds .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  speed = btn.dataset.s;
+});
+document.getElementById("startBtn").onclick = () => { if (mode === "simon") startGame(); };
+document.getElementById("replayBtn").onclick = () => { if (mode === "simon" && started && !playing) playSeq(); };
+
+// 启动
+renderPads();
+</script>
+</body>
+</html>

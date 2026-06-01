@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎮 郑直的游戏乐园</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+  html, body { min-height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Comic Sans MS", system-ui, sans-serif;
+    background: linear-gradient(160deg, #a8edea 0%, #fed6e3 55%, #fff6c8 100%);
+    color: #37474f; padding: 18px 14px 40px; user-select: none;
+  }
+  header { text-align: center; margin-bottom: 6px; }
+  h1 {
+    font-size: clamp(26px, 7vw, 46px); color: #5e35b1;
+    text-shadow: 2px 2px 0 #fff; line-height: 1.2;
+  }
+  .subtitle {
+    font-size: clamp(14px, 3.6vw, 19px); color: #00838f; font-weight: 700;
+    margin-top: 6px; background: #ffffffaa; display: inline-block;
+    padding: 6px 18px; border-radius: 999px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; }
+
+  .group { margin-top: 22px; }
+  .group-title {
+    font-size: clamp(17px, 4.4vw, 23px); font-weight: 800; color: #455a64;
+    margin: 0 0 10px 6px; display: flex; align-items: center; gap: 8px;
+  }
+  .group-title::before { content: ""; width: 8px; height: 22px; border-radius: 4px; background: var(--gc, #90caf9); }
+
+  .grid {
+    display: grid; gap: clamp(10px, 2.4vw, 16px);
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+  .card {
+    position: relative; display: flex; flex-direction: column; align-items: center;
+    text-decoration: none; color: inherit; text-align: center;
+    background: #fff; border-radius: 22px; padding: 16px 10px 14px;
+    box-shadow: 0 6px 0 #00000012, 0 8px 20px rgba(0,0,0,.08);
+    transition: transform .12s, box-shadow .12s;
+    opacity: 0; transform: translateY(14px); animation: rise .5s ease forwards;
+    border: 3px solid #fff;
+  }
+  .card:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 10px 0 #00000010, 0 14px 26px rgba(0,0,0,.14); }
+  .card:active { transform: translateY(2px) scale(.98); }
+  @keyframes rise { to { opacity: 1; transform: translateY(0); } }
+
+  .badge {
+    width: clamp(58px, 16vw, 76px); height: clamp(58px, 16vw, 76px);
+    border-radius: 20px; display: flex; align-items: center; justify-content: center;
+    font-size: clamp(34px, 9vw, 46px); line-height: 1; margin-bottom: 8px;
+    box-shadow: inset 0 -4px 8px rgba(0,0,0,.08);
+  }
+  .card .name { font-size: clamp(15px, 4vw, 19px); font-weight: 800; line-height: 1.2; }
+  .card .skill { font-size: clamp(12px, 3.2vw, 14px); color: #78909c; margin-top: 3px; font-weight: 600; }
+
+  footer { text-align: center; margin-top: 28px; font-size: 13px; color: #607d8b; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>🎮 郑直的游戏乐园 🌈</h1>
+      <div class="subtitle">点一个小方块，开始玩吧！一共 16 个小游戏 ✨</div>
+    </header>
+    <div id="groups"></div>
+    <footer>💡 提示：开声音体验更好哦，每个游戏都有小老师语音陪你玩</footer>
+  </div>
+
+<script>
+// 游戏数据：按能力分组
+const GROUPS = [
+  { name: "🔢 数学启蒙", color: "#42a5f5", items: [
+    { file: "ten-frame-cars.html", emoji: "🚗", name: "小汽车十格阵", skill: "加减法 · 数感", bg: "#e3f2fd" },
+    { file: "比一比.html",          emoji: "⚖️", name: "比一比",       skill: "大小 · 多少 · 高矮", bg: "#e1f5fe" },
+  ]},
+  { name: "🧩 思维逻辑", color: "#ab47bc", items: [
+    { file: "动物数独.html", emoji: "🐾", name: "动物数独", skill: "逻辑推理", bg: "#f3e5f5" },
+    { file: "找规律.html",   emoji: "🧩", name: "找规律",   skill: "规律 · 推理", bg: "#ede7f6" },
+  ]},
+  { name: "🧠 记忆专注", color: "#26a69a", items: [
+    { file: "记忆翻翻乐.html",   emoji: "🧠", name: "记忆翻翻乐",   skill: "记忆 · 配对", bg: "#e0f2f1" },
+    { file: "舒尔特方格.html",   emoji: "🔢", name: "舒尔特方格",   skill: "注意力 · 专注", bg: "#e8f5e9" },
+  ]},
+  { name: "👀 观察语言", color: "#ff9800", items: [
+    { file: "找不同.html",       emoji: "🔍", name: "找不同",       skill: "观察力", bg: "#fff3e0" },
+    { file: "识字大闯关.html",   emoji: "📖", name: "识字大闯关",   skill: "认字 · 拼音", bg: "#fff8e1" },
+  ]},
+  { name: "🕐 时间空间", color: "#5c6bc0", items: [
+    { file: "认识时间.html", emoji: "🕐", name: "认识时间", skill: "钟表 · 常识", bg: "#fff3e0" },
+    { file: "立体图形.html", emoji: "📦", name: "立体图形", skill: "几何 · 空间", bg: "#e8eaf6" },
+    { file: "走迷宫.html",   emoji: "🌀", name: "走迷宫",   skill: "方向 · 路径", bg: "#e8f5e9" },
+  ]},
+  { name: "🎵 听觉认知", color: "#ec407a", items: [
+    { file: "节奏听辨.html", emoji: "🎵", name: "节奏听辨", skill: "听觉 · 节奏", bg: "#ede7f6" },
+    { file: "分类归纳.html", emoji: "🗂️", name: "分类归纳", skill: "分类 · 归纳", bg: "#fff3e0" },
+    { file: "情绪认知.html", emoji: "😊", name: "情绪认知", skill: "情绪 · 社交", bg: "#fce4ec" },
+  ]},
+  { name: "✏️ 动作反应", color: "#66bb6a", items: [
+    { file: "连线成画.html", emoji: "✏️", name: "连线成画", skill: "手眼协调", bg: "#e1f5fe" },
+    { file: "打地鼠.html",   emoji: "🐹", name: "打地鼠",   skill: "反应力", bg: "#f1f8e9" },
+  ]},
+];
+
+const box = document.getElementById("groups");
+let delay = 0;
+GROUPS.forEach(g => {
+  const sec = document.createElement("div");
+  sec.className = "group";
+  const title = document.createElement("div");
+  title.className = "group-title";
+  title.style.setProperty("--gc", g.color);
+  title.textContent = g.name;
+  sec.appendChild(title);
+
+  const grid = document.createElement("div");
+  grid.className = "grid";
+  g.items.forEach(it => {
+    const a = document.createElement("a");
+    a.className = "card";
+    a.href = encodeURI(it.file);
+    a.style.animationDelay = delay + "ms";
+    delay += 60;
+    a.innerHTML =
+      `<div class="badge" style="background:${it.bg}">${it.emoji}</div>
+       <div class="name">${it.name}</div>
+       <div class="skill">${it.skill}</div>`;
+    grid.appendChild(a);
+  });
+  sec.appendChild(grid);
+  box.appendChild(sec);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🧠 记忆翻翻乐 · 小朋友益智游戏</title>
+<style>
+  :root {
+    --bg1: #d3eaff;
+    --bg2: #e7d9ff;
+    --back1: #ffb74d;
+    --back2: #ff8a65;
+    --shadow: rgba(0,0,0,.14);
+    --matched: #c8f7c5;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Comic Sans MS", system-ui, sans-serif;
+    background: linear-gradient(160deg, var(--bg1), var(--bg2));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 14px 12px 24px;
+    color: #4527a0;
+    user-select: none;
+  }
+  h1 {
+    font-size: clamp(24px, 6vw, 40px);
+    margin: 2px 0;
+    text-shadow: 2px 2px 0 #fff;
+    text-align: center;
+  }
+  .tip {
+    font-size: clamp(15px, 3.6vw, 20px);
+    margin: 8px 0 10px;
+    background: #fff;
+    padding: 8px 16px;
+    border-radius: 999px;
+    box-shadow: 0 3px 10px var(--shadow);
+    min-height: 1.4em;
+    text-align: center;
+    transition: background .2s;
+    max-width: 92vw;
+  }
+
+  /* 选择条（主题 / 难度） */
+  .row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+  .pick-btn {
+    font-size: clamp(14px, 3.8vw, 19px);
+    font-weight: 700;
+    padding: 9px 15px;
+    border: none;
+    border-radius: 16px;
+    background: #fff;
+    color: #5e35b1;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #c5b3e6;
+    transition: transform .08s, box-shadow .08s, background .2s;
+  }
+  .pick-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #c5b3e6; }
+  .pick-btn.active { background: #b39ddb; box-shadow: 0 4px 0 #7e57c2; color: #fff; }
+
+  /* 棋盘 */
+  #board {
+    display: grid;
+    gap: clamp(6px, 2vw, 12px);
+    margin: 6px 0 14px;
+    touch-action: manipulation;
+  }
+
+  /* 卡片：3D 翻转 */
+  .card {
+    perspective: 600px;
+    cursor: pointer;
+  }
+  .card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform .4s;
+    transform-style: preserve-3d;
+  }
+  .card.flipped .card-inner { transform: rotateY(180deg); }
+  .card-front, .card-back {
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backface-visibility: hidden;
+    box-shadow: 0 5px 12px var(--shadow);
+  }
+  /* 封面（背面朝上时显示） */
+  .card-front {
+    background: linear-gradient(150deg, var(--back1), var(--back2));
+    color: #fff;
+  }
+  .card-front span {
+    font-size: 48%;
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,.2));
+  }
+  /* 图案面 */
+  .card-back {
+    background: #fff;
+    transform: rotateY(180deg);
+  }
+  .card:active .card-inner { transform: scale(.95); }
+  .card.flipped:active .card-inner { transform: rotateY(180deg) scale(.95); }
+  .card.matched .card-back {
+    background: var(--matched);
+    animation: pop .5s;
+  }
+  .card.matched { cursor: default; }
+  @keyframes pop {
+    0%{transform:scale(1)} 50%{transform:scale(1.16)} 100%{transform:scale(1)}
+  }
+
+  /* 底部统计 + 工具 */
+  .stats {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    font-size: clamp(15px, 4vw, 20px);
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .stat-chip {
+    background: #fff;
+    padding: 7px 16px;
+    border-radius: 999px;
+    box-shadow: 0 3px 8px var(--shadow);
+  }
+  .tools { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .tool-btn {
+    font-size: clamp(15px, 4vw, 19px);
+    font-weight: 700;
+    padding: 11px 22px;
+    border: none;
+    border-radius: 16px;
+    background: #80d8ff;
+    color: #01579b;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #4fc3f7;
+    transition: transform .08s, box-shadow .08s;
+  }
+  .tool-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #4fc3f7; }
+  .tool-btn.new { background: #a5d6a7; box-shadow: 0 4px 0 #81c784; color: #1b5e20; }
+
+  /* 撒花 + 横幅 */
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+  .star {
+    position: fixed; top: -40px; font-size: 28px;
+    animation: fall linear forwards;
+  }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .9; } }
+  .win-banner {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    z-index: 60; pointer-events: none;
+  }
+  .win-banner span {
+    background: #fff; color: #7b1fa2; font-size: clamp(26px, 8vw, 54px);
+    font-weight: 800; padding: 18px 32px; border-radius: 28px; text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    animation: pop .6s;
+  }
+</style>
+</head>
+<body>
+  <h1>🧠 郑直的记忆翻翻乐 ✨</h1>
+  <div class="tip" id="tip">翻开两张卡片，找出一样的图案！记住它们藏在哪里哦 😊</div>
+
+  <div class="row" id="themes">
+    <button class="pick-btn active" data-t="animal">🐶 小动物</button>
+    <button class="pick-btn" data-t="fruit">🍎 水果</button>
+    <button class="pick-btn" data-t="vehicle">🚗 交通工具</button>
+  </div>
+
+  <div class="row" id="levels">
+    <button class="pick-btn active" data-p="3">🐣 简单 6 张</button>
+    <button class="pick-btn" data-p="6">🐰 普通 12 张</button>
+    <button class="pick-btn" data-p="8">🦁 挑战 16 张</button>
+    <button class="pick-btn" data-p="10">🏆 超级 20 张</button>
+  </div>
+
+  <div id="board"></div>
+
+  <div class="stats">
+    <div class="stat-chip">🎯 配对 <span id="pairText">0 / 0</span></div>
+    <div class="stat-chip">🔄 翻牌 <span id="moveText">0</span> 次</div>
+  </div>
+
+  <div class="tools">
+    <button class="tool-btn" id="peekBtn">👀 偷看一下</button>
+    <button class="tool-btn new" id="newBtn">🔄 换一题</button>
+  </div>
+
+  <div id="confetti"></div>
+
+<script>
+/* =======================================================================
+   记忆翻翻乐 —— 翻牌配对记忆游戏
+   翻开两张卡片找相同图案，锻炼学前儿童的短时记忆、观察力与专注力。
+   ======================================================================= */
+
+// 三套主题图案，每套 12 个，按对数取前 N 个
+const THEMES = {
+  animal:  ["🐶","🐱","🐰","🐻","🦊","🐼","🐯","🦁","🐸","🐵","🐔","🐷"],
+  fruit:   ["🍎","🍌","🍓","🍇","🍊","🍉","🍑","🍐","🥝","🍒","🥥","🍍"],
+  vehicle: ["🚗","🚌","🚓","🚑","🚒","✈️","🚜","🚂","🚀","🚁","⛵","🏍️"],
+};
+
+const CHILD_NAME = "郑直";
+let theme = "animal";   // 当前主题
+let pairs = 3;          // 当前对数
+let cards = [];         // [{ icon, flipped, matched }]
+let firstIdx = null;    // 已翻开待比较的第一张索引
+let lock = false;       // 比较动画期间锁定输入
+let moves = 0;          // 翻牌（成对比较）次数
+let matched = 0;        // 已配对数
+let peeking = false;    // 偷看中
+
+// 每种对数对应的列数，尽量接近方形、适配竖屏
+const COLS = { 3: 3, 6: 4, 8: 4, 10: 5 };
+
+// ---------- 简单音效（Web Audio，无需文件） ----------
+let actx = null;
+function beep(freq, dur = 0.12, type = "sine", vol = 0.15) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(vol, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+function playMatch() { [660, 880].forEach((f, i) => setTimeout(() => beep(f, 0.14, "triangle", 0.18), i * 90)); }
+function playWin()   { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.18, "triangle", 0.2), i * 150)); }
+
+// ---------- 语音（简体中文，找不到则静默） ----------
+let chosenVoice = null;
+function loadVoices() {
+  const zh = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith("zh"));
+  let prefer = zh.findIndex(v => v.localService && /tingting|婷婷|meijia|美佳|female|女/i.test(v.name));
+  if (prefer < 0) prefer = zh.findIndex(v => v.localService);
+  if (prefer < 0) prefer = 0;
+  chosenVoice = zh[prefer] || null;
+}
+if ("speechSynthesis" in window) {
+  speechSynthesis.onvoiceschanged = loadVoices;
+  loadVoices();
+}
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "zh-CN";
+    if (chosenVoice) u.voice = chosenVoice;
+    u.rate = 0.9; u.pitch = 1.05;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+// ---------- 洗牌 ----------
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ---------- 开新游戏 ----------
+function newGame() {
+  const icons = THEMES[theme].slice(0, pairs);
+  const deck = shuffle([...icons, ...icons].map(icon => ({ icon, flipped: false, matched: false })));
+  cards = deck;
+  firstIdx = null;
+  lock = false;
+  moves = 0;
+  matched = 0;
+  peeking = false;
+  renderBoard();
+  updateStats();
+  setTip("翻开两张卡片，找出一样的图案！记住它们藏在哪里哦 😊");
+}
+
+// ---------- 渲染棋盘 ----------
+function renderBoard() {
+  const el = document.getElementById("board");
+  const cols = COLS[pairs];
+  // 卡片尺寸随列数自适应：列越多卡越小
+  const size = { 3: "clamp(74px,26vw,110px)", 4: "clamp(62px,20vw,96px)", 5: "clamp(54px,17vw,82px)" }[cols];
+  el.style.gridTemplateColumns = `repeat(${cols}, ${size})`;
+  el.innerHTML = "";
+  cards.forEach((card, i) => {
+    const d = document.createElement("div");
+    d.className = "card" + (card.flipped ? " flipped" : "") + (card.matched ? " matched" : "");
+    d.style.width = size;
+    d.style.height = size;
+    d.style.fontSize = `calc(${size} * 0.95)`;   // 供图案面 emoji 使用
+    d.innerHTML =
+      `<div class="card-inner">
+         <div class="card-front"><span>❓</span></div>
+         <div class="card-back">${card.icon}</div>
+       </div>`;
+    d.onclick = () => onCardClick(i);
+    el.appendChild(d);
+  });
+}
+
+// ---------- 点击卡片 ----------
+function onCardClick(i) {
+  if (lock || peeking) return;
+  const card = cards[i];
+  if (card.flipped || card.matched) return;
+
+  card.flipped = true;
+  beep(620, 0.08);
+  renderBoard();
+
+  if (firstIdx === null) {
+    firstIdx = i;
+    return;
+  }
+
+  // 翻开了第二张，进行比较
+  moves++;
+  updateStats();
+  const a = cards[firstIdx], b = cards[i];
+
+  if (a.icon === b.icon) {
+    // 配对成功
+    a.matched = b.matched = true;
+    matched++;
+    firstIdx = null;
+    lock = true;
+    playMatch();
+    setTimeout(() => {
+      renderBoard();
+      updateStats();
+      lock = false;
+      if (matched === pairs) { win(); }
+      else { setTip(encourage()); }
+    }, 360);
+  } else {
+    // 不一样，稍后翻回
+    lock = true;
+    setTip("不一样哦，记住它们的位置，再试一次 🤔");
+    setTimeout(() => {
+      a.flipped = b.flipped = false;
+      firstIdx = null;
+      lock = false;
+      renderBoard();
+    }, 900);
+  }
+}
+
+const ENCOURAGE = ["找到一对啦！👏", "真棒，继续找！⭐", "记性真好！🌟", "太厉害了，再来！🎉"];
+function encourage() { return ENCOURAGE[Math.floor(Math.random() * ENCOURAGE.length)]; }
+
+// ---------- 偷看：短暂翻开全部 ----------
+function peek() {
+  if (lock || peeking || matched === pairs) return;
+  peeking = true;
+  const prevFirst = firstIdx;
+  firstIdx = null;
+  beep(880, 0.1);
+  cards.forEach(c => { if (!c.matched) c.flipped = true; });
+  renderBoard();
+  setTip("快记住图案的位置！⏳");
+  setTimeout(() => {
+    cards.forEach(c => { if (!c.matched) c.flipped = false; });
+    firstIdx = prevFirst;
+    // 若之前已翻开一张，保持其翻开状态
+    if (prevFirst !== null) cards[prevFirst].flipped = true;
+    peeking = false;
+    renderBoard();
+    setTip("开始找一样的吧！😊");
+  }, 1500);
+}
+
+// ---------- 统计 ----------
+function updateStats() {
+  document.getElementById("pairText").textContent = `${matched} / ${pairs}`;
+  document.getElementById("moveText").textContent = moves;
+}
+
+// ---------- 胜利 ----------
+function win() {
+  setTip(`太厉害啦！全部找到，只翻了 ${moves} 次！🌟`, "#c8f7c5");
+  playWin();
+  confetti();
+  banner();
+  speak(`${CHILD_NAME}太棒了！全部找到啦！`);
+}
+function confetti() {
+  const box = document.getElementById("confetti");
+  const emojis = ["🌟","🎉","⭐","🎈","💖","✨"].concat(THEMES[theme]);
+  for (let i = 0; i < 44; i++) {
+    const s = document.createElement("div");
+    s.className = "star";
+    s.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = (1.6 + Math.random() * 1.8) + "s";
+    s.style.animationDelay = Math.random() * 0.6 + "s";
+    box.appendChild(s);
+    setTimeout(() => s.remove(), 3600);
+  }
+}
+function banner() {
+  const b = document.createElement("div");
+  b.className = "win-banner";
+  b.innerHTML = `<span>🎉 ${CHILD_NAME}你赢啦！🎉</span>`;
+  document.body.appendChild(b);
+  setTimeout(() => b.remove(), 2600);
+}
+
+// ---------- 提示文字 ----------
+function setTip(t, bg) {
+  const el = document.getElementById("tip");
+  el.textContent = t;
+  el.style.background = bg || "#fff";
+}
+
+// ---------- 主题 / 难度切换 ----------
+document.getElementById("themes").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn");
+  if (!btn) return;
+  document.querySelectorAll("#themes .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  theme = btn.dataset.t;
+  beep(600, 0.1);
+  newGame();
+});
+document.getElementById("levels").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn");
+  if (!btn) return;
+  document.querySelectorAll("#levels .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  pairs = parseInt(btn.dataset.p, 10);
+  beep(520, 0.1);
+  newGame();
+});
+document.getElementById("peekBtn").onclick = peek;
+document.getElementById("newBtn").onclick = () => { beep(520, 0.1); newGame(); };
+
+// 启动
+newGame();
+</script>
+</body>
+</html>

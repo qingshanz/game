@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🕐 认识时间 · 小朋友学钟表</title>
+<style>
+  :root {
+    --bg1: #ffe9c7;
+    --bg2: #ffd1dc;
+    --face: #fffdf7;
+    --rim: #ef6c00;
+    --hour: #d84315;
+    --min: #1e88e5;
+    --shadow: rgba(0,0,0,.14);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Comic Sans MS", system-ui, sans-serif;
+    background: linear-gradient(160deg, var(--bg1), var(--bg2));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 12px 12px 24px;
+    color: #bf360c;
+    user-select: none;
+  }
+  h1 {
+    font-size: clamp(22px, 5.6vw, 38px);
+    margin: 2px 0;
+    text-shadow: 2px 2px 0 #fff;
+    text-align: center;
+  }
+  .tip {
+    font-size: clamp(15px, 3.6vw, 20px);
+    margin: 8px 0;
+    background: #fff;
+    padding: 8px 16px;
+    border-radius: 999px;
+    box-shadow: 0 3px 10px var(--shadow);
+    min-height: 1.4em;
+    text-align: center;
+    color: #5d4037;
+    max-width: 92vw;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+  .pick-btn {
+    font-size: clamp(13px, 3.6vw, 18px);
+    font-weight: 700;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 16px;
+    background: #fff;
+    color: #e65100;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #f0c79a;
+    transition: transform .08s, box-shadow .08s, background .2s;
+  }
+  .pick-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #f0c79a; }
+  .pick-btn.active { background: #ff9800; box-shadow: 0 4px 0 #e65100; color: #fff; }
+
+  /* 钟面 */
+  .clock-wrap {
+    width: min(72vw, 40vh, 320px);
+    margin: 6px 0 10px;
+    filter: drop-shadow(0 8px 16px var(--shadow));
+  }
+  svg { width: 100%; height: auto; display: block; }
+  .face { fill: var(--face); stroke: var(--rim); stroke-width: 5; }
+  .tick { stroke: #c98a5e; }
+  .num { fill: #5d4037; font-weight: 800; font-size: 15px; font-family: inherit; }
+  .hand-hour { stroke: var(--hour); stroke-width: 7; stroke-linecap: round; }
+  .hand-min  { stroke: var(--min);  stroke-width: 5; stroke-linecap: round; }
+  .pin { fill: var(--rim); }
+
+  /* 读钟：时间选项 */
+  .answers { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; width: min(92vw, 380px); }
+  .ans-btn {
+    font-size: clamp(18px, 5vw, 26px);
+    font-weight: 800;
+    padding: 14px 8px;
+    border: none;
+    border-radius: 16px;
+    background: #fff;
+    color: #5d4037;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #00000018;
+    transition: transform .08s;
+  }
+  .ans-btn:active { transform: translateY(3px); }
+  .ans-btn.correct { background: #66bb6a; color: #fff; animation: pop .5s; }
+  .ans-btn.wrong { background: #ef5350; color: #fff; animation: shake .35s; }
+  .ans-btn:disabled { opacity: .6; }
+
+  /* 拨钟：调节器 */
+  .setter { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .target { font-size: clamp(20px, 5.5vw, 30px); font-weight: 800; color: #d84315; }
+  .dials { display: flex; gap: 18px; }
+  .dial { background: #fff; border-radius: 18px; padding: 8px 12px; box-shadow: 0 4px 10px var(--shadow); text-align: center; }
+  .dial .label { font-size: 14px; font-weight: 700; color: #8d6e63; }
+  .dial .val { font-size: clamp(22px, 6vw, 34px); font-weight: 800; min-width: 1.6em; display: inline-block; }
+  .dial-row { display: flex; align-items: center; gap: 8px; }
+  .step-btn {
+    width: 44px; height: 44px; border: none; border-radius: 50%;
+    font-size: 24px; font-weight: 800; cursor: pointer; color: #fff;
+    background: #ff9800; box-shadow: 0 4px 0 #e65100;
+  }
+  .step-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #e65100; }
+  .hour-dial .step-btn { background: var(--hour); box-shadow: 0 4px 0 #a52714; }
+  .hour-dial .step-btn:active { box-shadow: 0 1px 0 #a52714; }
+  .min-dial .step-btn { background: var(--min); box-shadow: 0 4px 0 #1565c0; }
+  .min-dial .step-btn:active { box-shadow: 0 1px 0 #1565c0; }
+
+  .tools { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+  .tool-btn {
+    font-size: clamp(15px, 4vw, 19px);
+    font-weight: 700;
+    padding: 11px 22px;
+    border: none;
+    border-radius: 16px;
+    background: #80d8ff;
+    color: #01579b;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #4fc3f7;
+  }
+  .tool-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #4fc3f7; }
+  .tool-btn.speak { background: #ffd54f; color: #6d4c41; box-shadow: 0 4px 0 #f9a825; }
+
+  @keyframes pop { 0%{transform:scale(1)} 50%{transform:scale(1.16)} 100%{transform:scale(1)} }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+  .star { position: fixed; top: -40px; font-size: 28px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .9; } }
+</style>
+</head>
+<body>
+  <h1>🕐 郑直的认识时间 ⏰</h1>
+  <div class="tip" id="tip">看看钟面，现在是几点呀？</div>
+
+  <div class="row" id="modes">
+    <button class="pick-btn active" data-m="read">👀 看钟读时间</button>
+    <button class="pick-btn" data-m="set">🤚 拨钟对时间</button>
+  </div>
+  <div class="row" id="levels">
+    <button class="pick-btn active" data-l="hour">🐣 整点</button>
+    <button class="pick-btn" data-l="half">🐰 半点</button>
+    <button class="pick-btn" data-l="quarter">🦁 一刻钟</button>
+  </div>
+
+  <div class="clock-wrap" id="clockWrap"></div>
+
+  <!-- 读钟模式 -->
+  <div class="answers" id="answers"></div>
+
+  <!-- 拨钟模式 -->
+  <div class="setter" id="setter" style="display:none">
+    <div class="target" id="target"></div>
+    <div class="dials">
+      <div class="dial hour-dial">
+        <div class="label">⏰ 时（小时）</div>
+        <div class="dial-row">
+          <button class="step-btn" data-d="h" data-v="-1">−</button>
+          <span class="val" id="hVal">12</span>
+          <button class="step-btn" data-d="h" data-v="1">＋</button>
+        </div>
+      </div>
+      <div class="dial min-dial" id="minDial">
+        <div class="label">🕧 分（分钟）</div>
+        <div class="dial-row">
+          <button class="step-btn" data-d="m" data-v="-1">−</button>
+          <span class="val" id="mVal">00</span>
+          <button class="step-btn" data-d="m" data-v="1">＋</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tools">
+    <button class="tool-btn speak" id="speakBtn">🔊 再读一遍</button>
+    <button class="tool-btn" id="newBtn">🔄 换一题</button>
+  </div>
+
+  <div id="confetti"></div>
+
+<script>
+/* =======================================================================
+   认识时间 —— 学钟表
+   两种模式：看钟读时间（识读）/ 拨钟对时间（动手）。
+   锻炼学前儿童的时间概念与生活常识。
+   ======================================================================= */
+
+const CHILD_NAME = "郑直";
+let mode = "read";          // read | set
+let level = "hour";         // hour | half | quarter
+let target = { h: 12, m: 0 };
+let cur = { h: 12, m: 0 };  // 拨钟模式当前指针
+let locked = false;
+
+// 各难度允许的分钟
+const MINUTES = { hour: [0], half: [0, 30], quarter: [0, 15, 30, 45] };
+
+// ---------- 音效 ----------
+let actx = null;
+function beep(freq, dur = 0.12, type = "sine", vol = 0.15) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(vol, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+function playWin() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.18, "triangle", 0.2), i * 150)); }
+
+// ---------- 语音 ----------
+let chosenVoice = null;
+function loadVoices() {
+  const zh = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith("zh"));
+  let p = zh.findIndex(v => v.localService && /tingting|婷婷|meijia|美佳|female|女/i.test(v.name));
+  if (p < 0) p = zh.findIndex(v => v.localService);
+  if (p < 0) p = 0;
+  chosenVoice = zh[p] || null;
+}
+if ("speechSynthesis" in window) { speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "zh-CN"; if (chosenVoice) u.voice = chosenVoice;
+    u.rate = 0.9; u.pitch = 1.05;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+// ---------- 中文时间读法 ----------
+const CN = ["十二","一","二","三","四","五","六","七","八","九","十","十一","十二"];
+function cnHour(h) { return CN[h]; }
+function cnTime(h, m) {
+  if (m === 0) return `${cnHour(h)}点`;
+  if (m === 30) return `${cnHour(h)}点半`;
+  return `${cnHour(h)}点${m}分`;
+}
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function randTime() {
+  return { h: Math.floor(Math.random() * 12) + 1, m: pick(MINUTES[level]) };
+}
+function keyOf(t) { return (t.h % 12) * 60 + t.m; }
+
+// ---------- 钟面 SVG ----------
+function renderClock(t) {
+  const hourAngle = ((t.h % 12) + t.m / 60) * 30;
+  const minAngle = t.m * 6;
+  let ticks = "";
+  for (let k = 0; k < 60; k++) {
+    const a = k * 6 * Math.PI / 180;
+    const big = k % 5 === 0;
+    const r1 = big ? 78 : 83, r2 = 88;
+    ticks += `<line class="tick" x1="${100 + r1 * Math.sin(a)}" y1="${100 - r1 * Math.cos(a)}" x2="${100 + r2 * Math.sin(a)}" y2="${100 - r2 * Math.cos(a)}" stroke-width="${big ? 2.6 : 1.2}"/>`;
+  }
+  let nums = "";
+  for (let k = 1; k <= 12; k++) {
+    const a = k * 30 * Math.PI / 180;
+    nums += `<text class="num" x="${100 + 66 * Math.sin(a)}" y="${100 - 66 * Math.cos(a)}" text-anchor="middle" dominant-baseline="central">${k}</text>`;
+  }
+  document.getElementById("clockWrap").innerHTML =
+    `<svg viewBox="0 0 200 200">
+       <circle class="face" cx="100" cy="100" r="90"/>
+       ${ticks}${nums}
+       <line class="hand-hour" x1="100" y1="100" x2="100" y2="54" transform="rotate(${hourAngle} 100 100)"/>
+       <line class="hand-min" x1="100" y1="100" x2="100" y2="32" transform="rotate(${minAngle} 100 100)"/>
+       <circle class="pin" cx="100" cy="100" r="5.5"/>
+     </svg>`;
+}
+
+// ---------- 出新题 ----------
+function newQuestion() {
+  locked = false;
+  target = randTime();
+  if (mode === "read") {
+    document.getElementById("answers").style.display = "grid";
+    document.getElementById("setter").style.display = "none";
+    renderClock(target);
+    buildOptions();
+    setTip("看看钟面，现在是几点呀？");
+    speak("现在是几点呀？");
+  } else {
+    document.getElementById("answers").style.display = "none";
+    document.getElementById("setter").style.display = "flex";
+    cur = { h: 12, m: 0 };
+    // 整点难度隐藏分钟调节
+    document.getElementById("minDial").style.display = level === "hour" ? "none" : "block";
+    renderClock(cur);
+    updateDials();
+    document.getElementById("target").textContent = `请拨到 ${cnTime(target.h, target.m)}`;
+    setTip(`用 ＋ − 把指针拨到 ${cnTime(target.h, target.m)}`);
+    speak(`请把时钟拨到 ${cnTime(target.h, target.m)}`);
+  }
+}
+
+// ---------- 读钟：选项 ----------
+function buildOptions() {
+  const opts = [target];
+  let guard = 0;
+  while (opts.length < 4 && guard++ < 200) {
+    const t = randTime();
+    if (!opts.some(o => keyOf(o) === keyOf(t))) opts.push(t);
+  }
+  // 洗牌
+  for (let i = opts.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [opts[i], opts[j]] = [opts[j], opts[i]];
+  }
+  const box = document.getElementById("answers");
+  box.innerHTML = "";
+  opts.forEach(t => {
+    const b = document.createElement("button");
+    b.className = "ans-btn";
+    b.textContent = cnTime(t.h, t.m);
+    b.onclick = () => checkRead(t, b);
+    box.appendChild(b);
+  });
+}
+function checkRead(t, btn) {
+  if (locked) return;
+  if (keyOf(t) === keyOf(target)) {
+    locked = true;
+    btn.classList.add("correct");
+    [...document.getElementById("answers").children].forEach(b => b.disabled = true);
+    win(`答对啦！现在是 ${cnTime(target.h, target.m)} 🌟`);
+  } else {
+    btn.classList.add("wrong");
+    beep(220, 0.12, "square");
+    setTip("再看看时针和分针，试一次 🤔");
+    speak("再看看，时针指着几呀");
+    setTimeout(() => btn.classList.remove("wrong"), 400);
+  }
+}
+
+// ---------- 拨钟：调节 ----------
+function updateDials() {
+  document.getElementById("hVal").textContent = cur.h;
+  document.getElementById("mVal").textContent = String(cur.m).padStart(2, "0");
+}
+function step(which, dir) {
+  if (locked) return;
+  if (which === "h") {
+    cur.h = ((cur.h - 1 + dir + 12) % 12) + 1;
+    beep(440, 0.07);
+  } else {
+    const st = level === "quarter" ? 15 : 30;   // 半点/一刻钟的分钟步进
+    cur.m = (cur.m + dir * st + 60) % 60;
+    beep(560, 0.07);
+  }
+  renderClock(cur);
+  updateDials();
+  if (keyOf(cur) === keyOf(target)) {
+    locked = true;
+    win(`太棒了！正好是 ${cnTime(target.h, target.m)} 🌟`);
+  }
+}
+
+// ---------- 胜利 ----------
+function win(msg) {
+  setTip(msg, "#c8f7c5");
+  beep(660, 0.12, "triangle"); playWin();
+  confetti();
+  speak(`${CHILD_NAME}真厉害！`);
+  setTimeout(newQuestion, 2400);
+}
+function confetti() {
+  const box = document.getElementById("confetti");
+  const emojis = ["🌟","🎉","⭐","🕐","🎈","⏰","✨","💖"];
+  for (let i = 0; i < 40; i++) {
+    const s = document.createElement("div");
+    s.className = "star";
+    s.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = (1.6 + Math.random() * 1.8) + "s";
+    s.style.animationDelay = Math.random() * 0.5 + "s";
+    box.appendChild(s);
+    setTimeout(() => s.remove(), 3500);
+  }
+}
+
+// ---------- 提示文字 ----------
+function setTip(t, bg) {
+  const el = document.getElementById("tip");
+  el.textContent = t;
+  el.style.background = bg || "#fff";
+}
+
+// ---------- 朗读当前题 ----------
+function speakCurrent() {
+  if (mode === "read") speak(`现在是几点呀？`);
+  else speak(`请把时钟拨到 ${cnTime(target.h, target.m)}`);
+}
+
+// ---------- 事件 ----------
+document.getElementById("modes").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#modes .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  mode = btn.dataset.m; beep(600, 0.1); newQuestion();
+});
+document.getElementById("levels").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#levels .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  level = btn.dataset.l; beep(520, 0.1); newQuestion();
+});
+document.querySelectorAll(".step-btn").forEach(b => {
+  b.onclick = () => step(b.dataset.d, parseInt(b.dataset.v, 10));
+});
+document.getElementById("speakBtn").onclick = speakCurrent;
+document.getElementById("newBtn").onclick = () => { beep(520, 0.1); newQuestion(); };
+
+// 启动
+newQuestion();
+</script>
+</body>
+</html>

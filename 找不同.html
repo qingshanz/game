@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🔍 找不同 · 小朋友练观察</title>
+<style>
+  :root { --shadow: rgba(0,0,0,.14); }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Comic Sans MS", system-ui, sans-serif;
+    background: linear-gradient(160deg, #ffe7c2, #c9f0ff);
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 12px 12px 24px; color: #ef6c00; user-select: none;
+  }
+  h1 { font-size: clamp(22px, 5.6vw, 38px); margin: 2px 0; text-shadow: 2px 2px 0 #fff; text-align: center; }
+  .tip {
+    font-size: clamp(15px, 3.6vw, 20px); margin: 8px 0; background: #fff;
+    padding: 8px 16px; border-radius: 999px; box-shadow: 0 3px 10px var(--shadow);
+    min-height: 1.4em; text-align: center; color: #455a64; max-width: 92vw;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+  .pick-btn {
+    font-size: clamp(13px, 3.6vw, 18px); font-weight: 700; padding: 8px 14px;
+    border: none; border-radius: 16px; background: #fff; color: #e65100;
+    cursor: pointer; box-shadow: 0 4px 0 #f3c98f; transition: transform .08s, background .2s;
+  }
+  .pick-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #f3c98f; }
+  .pick-btn.active { background: #ff9800; box-shadow: 0 4px 0 #e65100; color: #fff; }
+
+  /* 单网格（找不一样的） */
+  #grid { display: grid; gap: clamp(4px, 1.4vw, 8px); margin: 6px 0 14px;
+    background: #fff; padding: clamp(8px,2vw,14px); border-radius: 20px; box-shadow: 0 6px 18px var(--shadow); }
+  .cell {
+    aspect-ratio: 1; border-radius: 12px; background: #fff8ef;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    line-height: 1; transition: transform .07s, background .15s;
+  }
+  .cell:active { transform: scale(.92); }
+  .cell.right { background: #a5d6a7; animation: pop .5s; }
+  .cell.wrong { background: #ef9a9a; animation: shake .35s; }
+  @keyframes pop { 0%{transform:scale(1)} 50%{transform:scale(1.25)} 100%{transform:scale(1)} }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
+
+  /* 双网格（两图找不同） */
+  #spot { display: flex; gap: clamp(8px, 3vw, 20px); margin: 6px 0 14px; flex-wrap: wrap; justify-content: center; }
+  .panel { background: #fff; padding: clamp(6px,1.6vw,10px); border-radius: 18px; box-shadow: 0 6px 18px var(--shadow); }
+  .panel .pgrid { display: grid; gap: clamp(3px,1vw,6px); }
+  .panel .label { font-size: 14px; font-weight: 700; color: #8d6e63; text-align: center; margin-bottom: 4px; }
+
+  .score { font-size: clamp(16px, 4.2vw, 21px); font-weight: 800; color: #f57f17; margin-top: 6px; }
+  .tools { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
+  .tool-btn {
+    font-size: clamp(15px, 4vw, 19px); font-weight: 700; padding: 11px 22px;
+    border: none; border-radius: 16px; background: #80d8ff; color: #01579b;
+    cursor: pointer; box-shadow: 0 4px 0 #4fc3f7;
+  }
+  .tool-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #4fc3f7; }
+
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+  .star { position: fixed; top: -40px; font-size: 28px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .9; } }
+</style>
+</head>
+<body>
+  <h1>🔍 郑直的找不同 👀</h1>
+  <div class="tip" id="tip">这里面有一个和别人不一样，把它找出来！</div>
+
+  <div class="row" id="modes">
+    <button class="pick-btn active" data-m="odd">🐱 找不一样的</button>
+    <button class="pick-btn" data-m="spot">🖼️ 两图找不同</button>
+  </div>
+  <div class="row" id="themes">
+    <button class="pick-btn active" data-t="animal">🐶 动物</button>
+    <button class="pick-btn" data-t="fruit">🍎 水果</button>
+    <button class="pick-btn" data-t="face">😀 表情</button>
+  </div>
+  <div class="row" id="levels">
+    <button class="pick-btn active" data-l="easy">🐣 简单</button>
+    <button class="pick-btn" data-l="mid">🐰 普通</button>
+    <button class="pick-btn" data-l="hard">🦁 挑战</button>
+  </div>
+
+  <div id="grid"></div>
+  <div id="spot" style="display:none"></div>
+
+  <div class="score" id="score">🌟 连对 0 个</div>
+
+  <div class="tools">
+    <button class="tool-btn" id="newBtn">🔄 换一题</button>
+  </div>
+
+  <div id="confetti"></div>
+
+<script>
+/* =======================================================================
+   找不同 —— 观察力训练
+   找不一样的（odd-one-out）/ 两图找不同 两种模式。
+   锻炼学前儿童的观察力、细节辨别与专注力。
+   ======================================================================= */
+
+const CHILD_NAME = "郑直";
+
+// 主题图案池
+const THEMES = {
+  animal: ["🐶","🐱","🐰","🐻","🦊","🐼","🐯","🐸","🐵","🐷","🐮","🐔","🐭","🦁"],
+  fruit:  ["🍎","🍌","🍇","🍓","🍊","🍉","🍑","🍐","🥝","🍒","🥥","🍍","🥭","🍋"],
+  face:   ["😀","😄","😁","😆","😊","🙂","😍","😎","🤔","😴","😮","😋","🥰","😅"],
+};
+// 相似干扰对（挑战模式优先用，更难分辨）
+const NEAR = {
+  "🐶":"🐺","🐯":"🐱","🐰":"🐹","🐻":"🐼","🐸":"🐢",
+  "🍊":"🍑","🍎":"🍅","🍐":"🍏","🍋":"🍌","🍇":"🫐",
+  "😀":"😄","😊":"🙂","😆":"😁","😍":"🥰","😮":"😯",
+};
+
+let mode = "odd";      // odd | spot
+let theme = "animal";
+let level = "easy";
+let streak = 0;
+let answerIdx = -1;    // 不同的位置
+
+// ---------- 音效 ----------
+let actx = null;
+function beep(freq, dur = 0.12, type = "sine", vol = 0.15) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(vol, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+function playWin() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.18, "triangle", 0.2), i * 150)); }
+
+// ---------- 语音 ----------
+let chosenVoice = null;
+function loadVoices() {
+  const zh = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith("zh"));
+  let p = zh.findIndex(v => v.localService && /tingting|婷婷|meijia|美佳|female|女/i.test(v.name));
+  if (p < 0) p = zh.findIndex(v => v.localService);
+  if (p < 0) p = 0;
+  chosenVoice = zh[p] || null;
+}
+if ("speechSynthesis" in window) { speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "zh-CN"; if (chosenVoice) u.voice = chosenVoice;
+    u.rate = 0.9; u.pitch = 1.05; speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+// ---------- 出新题 ----------
+function newQuestion() {
+  if (mode === "odd") renderOdd(); else renderSpot();
+}
+
+// ---------- 找不一样的 ----------
+function renderOdd() {
+  document.getElementById("grid").style.display = "grid";
+  document.getElementById("spot").style.display = "none";
+
+  const conf = { easy: { n: 9, cols: 3 }, mid: { n: 16, cols: 4 }, hard: { n: 25, cols: 5 } }[level];
+  const pool = THEMES[theme];
+  const base = pick(pool);
+  // 选不同图案：挑战优先选相似的，否则随机不同
+  let diff;
+  if (level === "hard" && NEAR[base]) diff = NEAR[base];
+  else { do { diff = pick(pool); } while (diff === base); }
+
+  answerIdx = Math.floor(Math.random() * conf.n);
+  const grid = document.getElementById("grid");
+  const size = { 3: "clamp(58px,18vw,84px)", 4: "clamp(48px,14vw,68px)", 5: "clamp(40px,11vw,56px)" }[conf.cols];
+  grid.style.gridTemplateColumns = `repeat(${conf.cols}, ${size})`;
+  grid.innerHTML = "";
+  for (let i = 0; i < conf.n; i++) {
+    const d = document.createElement("div");
+    d.className = "cell";
+    d.style.width = size; d.style.height = size;
+    d.style.fontSize = `calc(${size} * 0.62)`;
+    d.textContent = i === answerIdx ? diff : base;
+    d.onclick = () => checkOdd(i, d);
+    grid.appendChild(d);
+  }
+  setTip("有一个和别人不一样，把它找出来！👀");
+  speak("找一找，哪一个不一样呀？");
+}
+function checkOdd(i, el) {
+  if (el.classList.contains("right")) return;
+  if (i === answerIdx) {
+    el.classList.add("right");
+    [...document.getElementById("grid").children].forEach(c => c.onclick = null);
+    win();
+  } else {
+    el.classList.add("wrong");
+    beep(220, 0.12, "square");
+    setTip("不是这个哦，再仔细看看 🔎");
+    setTimeout(() => el.classList.remove("wrong"), 400);
+  }
+}
+
+// ---------- 两图找不同 ----------
+function renderSpot() {
+  document.getElementById("grid").style.display = "none";
+  document.getElementById("spot").style.display = "flex";
+
+  const conf = { easy: { n: 9, cols: 3 }, mid: { n: 16, cols: 4 }, hard: { n: 25, cols: 5 } }[level];
+  const pool = THEMES[theme];
+  // 用多种图案随机填充，做成一幅“小图画”
+  const left = Array.from({ length: conf.n }, () => pick(pool));
+  const right = [...left];
+  // 改其中一格为不同图案
+  answerIdx = Math.floor(Math.random() * conf.n);
+  let nd;
+  do { nd = pick(pool); } while (nd === right[answerIdx]);
+  right[answerIdx] = nd;
+
+  const spot = document.getElementById("spot");
+  spot.innerHTML = "";
+  const size = { 3: "clamp(34px,10vw,52px)", 4: "clamp(28px,8vw,42px)", 5: "clamp(22px,6.4vw,34px)" }[conf.cols];
+  [["左图", left], ["右图", right]].forEach(([label, arr]) => {
+    const panel = document.createElement("div");
+    panel.className = "panel";
+    const lab = document.createElement("div"); lab.className = "label"; lab.textContent = label;
+    const pg = document.createElement("div");
+    pg.className = "pgrid";
+    pg.style.gridTemplateColumns = `repeat(${conf.cols}, ${size})`;
+    arr.forEach((em, i) => {
+      const c = document.createElement("div");
+      c.className = "cell";
+      c.style.width = size; c.style.height = size;
+      c.style.fontSize = `calc(${size} * 0.7)`;
+      c.textContent = em;
+      c.onclick = () => checkSpot(i, c);
+      pg.appendChild(c);
+    });
+    panel.appendChild(lab); panel.appendChild(pg);
+    spot.appendChild(panel);
+  });
+  setTip("两幅图有一处不一样，点出那个格子！👀");
+  speak("两幅图哪里不一样呀？");
+}
+function checkSpot(i, el) {
+  if (i === answerIdx) {
+    // 标出两图对应格
+    document.querySelectorAll("#spot .pgrid").forEach(pg => pg.children[answerIdx].classList.add("right"));
+    document.querySelectorAll("#spot .cell").forEach(c => c.onclick = null);
+    win();
+  } else {
+    el.classList.add("wrong");
+    beep(220, 0.12, "square");
+    setTip("这里一样哦，再找找 🔎");
+    setTimeout(() => el.classList.remove("wrong"), 400);
+  }
+}
+
+// ---------- 胜利 ----------
+function win() {
+  streak++;
+  document.getElementById("score").textContent = `🌟 连对 ${streak} 个`;
+  setTip("找到啦！眼睛真亮 🎉");
+  beep(660, 0.12, "triangle"); playWin(); confetti();
+  speak(`${CHILD_NAME}找到啦！`);
+  setTimeout(newQuestion, 1700);
+}
+
+// ---------- 撒花 ----------
+function confetti() {
+  const box = document.getElementById("confetti");
+  const emojis = ["🌟","🎉","⭐","🔍","🎈","💖","✨","👀"];
+  for (let i = 0; i < 34; i++) {
+    const s = document.createElement("div");
+    s.className = "star";
+    s.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = (1.6 + Math.random() * 1.8) + "s";
+    box.appendChild(s);
+    setTimeout(() => s.remove(), 3500);
+  }
+}
+
+function setTip(t) { document.getElementById("tip").textContent = t; }
+
+// ---------- 事件 ----------
+document.getElementById("modes").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#modes .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  mode = btn.dataset.m; beep(600, 0.1); newQuestion();
+});
+document.getElementById("themes").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#themes .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  theme = btn.dataset.t; beep(520, 0.1); newQuestion();
+});
+document.getElementById("levels").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#levels .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  level = btn.dataset.l; beep(520, 0.1); newQuestion();
+});
+document.getElementById("newBtn").onclick = () => { beep(520, 0.1); newQuestion(); };
+
+// 启动
+newQuestion();
+</script>
+</body>
+</html>

@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🐾 动物数独 · 小朋友益智游戏</title>
+<style>
+  :root {
+    --bg1: #fff3d6;
+    --bg2: #ffe0ec;
+    --line: #ffb74d;
+    --cell: #ffffff;
+    --given: #fff0c2;
+    --pick: #c8f7c5;
+    --bad: #ffcdd2;
+    --shadow: rgba(0,0,0,.12);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Comic Sans MS", system-ui, sans-serif;
+    background: linear-gradient(160deg, var(--bg1), var(--bg2));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 16px;
+    color: #5d4037;
+    user-select: none;
+  }
+  h1 {
+    font-size: clamp(26px, 6vw, 42px);
+    margin: 4px 0 2px;
+    text-shadow: 2px 2px 0 #fff;
+  }
+  .tip {
+    font-size: clamp(15px, 3.6vw, 20px);
+    margin: 0 0 10px;
+    background: #fff;
+    padding: 8px 16px;
+    border-radius: 999px;
+    box-shadow: 0 3px 10px var(--shadow);
+    min-height: 1.4em;
+    text-align: center;
+    transition: background .2s;
+  }
+
+  /* 难度选择 */
+  .levels {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 14px;
+  }
+  .lv-btn {
+    font-size: clamp(15px, 4vw, 20px);
+    font-weight: 700;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 18px;
+    background: #fff;
+    color: #6d4c41;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #e0c9a6;
+    transition: transform .08s, box-shadow .08s, background .2s;
+  }
+  .lv-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #e0c9a6; }
+  .lv-btn.active {
+    background: #ffd54f;
+    box-shadow: 0 4px 0 #d4a017;
+  }
+
+  /* 棋盘 */
+  #board {
+    display: grid;
+    gap: 6px;
+    background: var(--line);
+    padding: 10px;
+    border-radius: 22px;
+    box-shadow: 0 8px 24px var(--shadow);
+    margin-bottom: 16px;
+    touch-action: manipulation;
+  }
+  .cell {
+    background: var(--cell);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    line-height: 1;
+    transition: transform .08s, background .15s;
+  }
+  .cell:active { transform: scale(.92); }
+  .cell.given { background: var(--given); cursor: default; }
+  .cell.bad { background: var(--bad); animation: shake .3s; }
+  .cell.win { animation: pop .5s; }
+  @keyframes shake {
+    0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)}
+  }
+  @keyframes pop {
+    0%{transform:scale(1)} 50%{transform:scale(1.18)} 100%{transform:scale(1)}
+  }
+
+  /* 动物调色板 */
+  .palette {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    background: #fff;
+    padding: 12px;
+    border-radius: 22px;
+    box-shadow: 0 6px 18px var(--shadow);
+    margin-bottom: 14px;
+  }
+  .animal {
+    width: clamp(48px, 14vw, 66px);
+    height: clamp(48px, 14vw, 66px);
+    font-size: clamp(30px, 9vw, 44px);
+    border-radius: 16px;
+    background: #f4f4f4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 4px solid transparent;
+    transition: transform .08s, border-color .15s, background .15s;
+  }
+  .animal:active { transform: scale(.9); }
+  .animal.selected {
+    border-color: #4caf50;
+    background: var(--pick);
+    transform: scale(1.08);
+  }
+  .animal.eraser.selected { border-color: #ef5350; background: #ffd6d6; }
+
+  /* 工具栏 */
+  .tools { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .tool-btn {
+    font-size: clamp(15px, 4vw, 19px);
+    font-weight: 700;
+    padding: 10px 18px;
+    border: none;
+    border-radius: 16px;
+    background: #80d8ff;
+    color: #01579b;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #4fc3f7;
+    transition: transform .08s, box-shadow .08s;
+  }
+  .tool-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #4fc3f7; }
+  .tool-btn.new { background: #a5d6a7; box-shadow: 0 4px 0 #81c784; color:#1b5e20;}
+
+  /* 撒花 */
+  #confetti {
+    position: fixed; inset: 0; pointer-events: none; z-index: 50;
+  }
+  .star {
+    position: fixed; top: -40px; font-size: 28px;
+    animation: fall linear forwards;
+  }
+  @keyframes fall {
+    to { transform: translateY(110vh) rotate(540deg); opacity: .9; }
+  }
+  .win-banner {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    z-index: 60; pointer-events: none;
+  }
+  .win-banner span {
+    background: #fff; color: #e91e63; font-size: clamp(30px, 9vw, 60px);
+    font-weight: 800; padding: 18px 34px; border-radius: 28px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    animation: pop .6s;
+  }
+</style>
+</head>
+<body>
+  <h1>🐾 动物数独</h1>
+  <div class="tip" id="tip">先选一只小动物，再点格子放进去 😊</div>
+
+  <div class="levels" id="themes">
+    <button class="lv-btn active" data-t="animal">🐶 小动物</button>
+    <button class="lv-btn" data-t="fruit">🍎 水果</button>
+    <button class="lv-btn" data-t="vehicle">🚗 交通工具</button>
+  </div>
+
+  <div class="levels" id="levels">
+    <button class="lv-btn active" data-n="3">🐣 简单 3×3</button>
+    <button class="lv-btn" data-n="4">🐰 普通 4×4</button>
+    <button class="lv-btn" data-n="5">🦁 挑战 5×5</button>
+    <button class="lv-btn" data-n="6">🏆 超级 6×6</button>
+  </div>
+
+  <div id="board"></div>
+
+  <div class="palette" id="palette"></div>
+
+  <div class="tools">
+    <button class="tool-btn" id="hintBtn">💡 提示一下</button>
+    <button class="tool-btn new" id="newBtn">🔄 换一题</button>
+  </div>
+
+  <div id="confetti"></div>
+
+<script>
+// 三套主题图案，每套至少 6 个（按尺寸取前 N 个）
+const THEMES = {
+  animal:  ["🐶","🐱","🐰","🐻","🦊","🐼"],
+  fruit:   ["🍎","🍌","🍓","🍇","🍊","🍉"],
+  vehicle: ["🚗","🚌","🚓","🚑","🚒","✈️"],
+};
+let theme = "animal";          // 当前主题
+let ICONS = THEMES[theme];     // 当前使用的图案数组
+
+let N = 3;            // 当前棋盘大小
+let solution = [];    // 完整答案（拉丁方）
+let board = [];       // 当前棋盘，0 表示空
+let given = [];       // 是否为题目给定（不可改）
+let selected = null;  // 当前选中的动物索引；-1 表示橡皮擦；null 表示未选
+
+// ---------- 简单音效（Web Audio，无需文件） ----------
+let actx = null;
+function beep(freq, dur = 0.12, type = "sine", vol = 0.15) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(vol, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+function playWin() {
+  const notes = [523, 659, 784, 1047];
+  notes.forEach((f, i) => setTimeout(() => beep(f, 0.18, "triangle", 0.2), i * 150));
+}
+
+// ---------- 生成随机拉丁方（每行每列不重复） ----------
+function makeLatin(n) {
+  // 基础拉丁方 L[i][j] = (i + j) % n
+  let L = Array.from({length: n}, (_, i) =>
+    Array.from({length: n}, (_, j) => (i + j) % n));
+  // 随机打乱行
+  shuffle(L);
+  // 随机打乱列
+  const cols = shuffle([...Array(n).keys()]);
+  L = L.map(row => cols.map(c => row[c]));
+  // 随机重映射动物编号
+  const map = shuffle([...Array(n).keys()]);
+  return L.map(row => row.map(v => map[v]));
+}
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ---------- 开新游戏 ----------
+function newGame() {
+  solution = makeLatin(N);
+  board = solution.map(r => r.map(() => 0));
+  given = solution.map(r => r.map(() => false));
+
+  // 决定保留多少提示（给小朋友留较多提示，难度随尺寸提高）
+  const ratioHint = { 3: 0.55, 4: 0.5, 5: 0.45, 6: 0.5 }[N];
+  const total = N * N;
+  let keep = Math.round(total * ratioHint);
+
+  // 随机选格子作为给定提示
+  const idx = shuffle([...Array(total).keys()]).slice(0, keep);
+  idx.forEach(k => {
+    const r = Math.floor(k / N), c = k % N;
+    board[r][c] = solution[r][c] + 1; // 存 1-based，0 表示空
+    given[r][c] = true;
+  });
+
+  selected = null;
+  renderBoard();
+  renderPalette();
+  setTip("先选一只小动物，再点格子放进去 😊");
+}
+
+// ---------- 渲染棋盘 ----------
+function renderBoard() {
+  const el = document.getElementById("board");
+  const cellSize = { 3: "clamp(70px,22vw,96px)", 4: "clamp(58px,18vw,82px)", 5: "clamp(50px,15vw,70px)", 6: "clamp(44px,13vw,60px)" }[N];
+  el.style.gridTemplateColumns = `repeat(${N}, ${cellSize})`;
+  el.innerHTML = "";
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      const d = document.createElement("div");
+      d.className = "cell" + (given[r][c] ? " given" : "");
+      d.style.width = cellSize;
+      d.style.height = cellSize;
+      d.style.fontSize = `calc(${cellSize} * 0.6)`;
+      const v = board[r][c];
+      d.textContent = v ? ICONS[v - 1] : "";
+      d.dataset.r = r; d.dataset.c = c;
+      d.onclick = () => onCellClick(r, c);
+      el.appendChild(d);
+    }
+  }
+}
+
+// ---------- 渲染动物调色板 ----------
+function renderPalette() {
+  const el = document.getElementById("palette");
+  el.innerHTML = "";
+  for (let i = 0; i < N; i++) {
+    const a = document.createElement("div");
+    a.className = "animal" + (selected === i ? " selected" : "");
+    a.textContent = ICONS[i];
+    a.onclick = () => { selected = i; beep(660, 0.08); renderPalette(); setTip(`选好啦！点格子放 ${ICONS[i]}`); };
+    el.appendChild(a);
+  }
+  // 橡皮擦
+  const er = document.createElement("div");
+  er.className = "animal eraser" + (selected === -1 ? " selected" : "");
+  er.textContent = "🧹";
+  er.title = "橡皮擦";
+  er.onclick = () => { selected = -1; beep(300, 0.08); renderPalette(); setTip("橡皮擦：点格子可以擦掉小动物"); };
+  el.appendChild(er);
+}
+
+// ---------- 点击格子 ----------
+function onCellClick(r, c) {
+  if (given[r][c]) { beep(220, 0.1, "square"); setTip("这是题目给的，不能改哦 🔒"); return; }
+  if (selected === null) { setTip("先在下面选一只小动物呀 👇"); beep(220, 0.1, "square"); return; }
+
+  if (selected === -1) {
+    board[r][c] = 0;
+    beep(300, 0.08);
+  } else {
+    board[r][c] = selected + 1;
+    beep(660, 0.1);
+  }
+  renderBoard();
+  checkConflicts();
+  if (isFull() && noConflict()) win();
+}
+
+// ---------- 冲突检测并标红 ----------
+function checkConflicts() {
+  // 清除旧标记
+  document.querySelectorAll(".cell.bad").forEach(e => e.classList.remove("bad"));
+  const cells = document.querySelectorAll(".cell");
+  const mark = (r, c) => cells[r * N + c].classList.add("bad");
+
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      const v = board[r][c];
+      if (!v) continue;
+      // 同行
+      for (let cc = 0; cc < N; cc++) if (cc !== c && board[r][cc] === v) { mark(r, c); }
+      // 同列
+      for (let rr = 0; rr < N; rr++) if (rr !== r && board[rr][c] === v) { mark(r, c); }
+    }
+  }
+}
+function noConflict() {
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      const v = board[r][c];
+      if (!v) continue;
+      for (let cc = 0; cc < N; cc++) if (cc !== c && board[r][cc] === v) return false;
+      for (let rr = 0; rr < N; rr++) if (rr !== r && board[rr][c] === v) return false;
+    }
+  }
+  return true;
+}
+function isFull() {
+  return board.every(row => row.every(v => v !== 0));
+}
+
+// ---------- 提示：帮填一个正确格子 ----------
+function hint() {
+  const empties = [];
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++)
+      if (!given[r][c] && board[r][c] !== solution[r][c] + 1) empties.push([r, c]);
+  if (!empties.length) { setTip("全部填好啦，真棒！🎉"); return; }
+  const [r, c] = empties[Math.floor(Math.random() * empties.length)];
+  board[r][c] = solution[r][c] + 1;
+  beep(880, 0.12);
+  renderBoard();
+  checkConflicts();
+  setTip(`这一格放 ${ICONS[solution[r][c]]} 😉`);
+  if (isFull() && noConflict()) win();
+}
+
+// ---------- 胜利 ----------
+function win() {
+  setTip("太厉害啦！全部完成！🌟", "#c8f7c5");
+  document.querySelectorAll(".cell").forEach(e => e.classList.add("win"));
+  playWin();
+  confetti();
+  banner();
+}
+function confetti() {
+  const box = document.getElementById("confetti");
+  const emojis = ["🌟","🎉","⭐","🐶","🐱","🐰","🎈","💖","🦊","🐻"];
+  for (let i = 0; i < 40; i++) {
+    const s = document.createElement("div");
+    s.className = "star";
+    s.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = (1.6 + Math.random() * 1.8) + "s";
+    s.style.animationDelay = Math.random() * 0.6 + "s";
+    box.appendChild(s);
+    setTimeout(() => s.remove(), 3600);
+  }
+}
+function banner() {
+  const b = document.createElement("div");
+  b.className = "win-banner";
+  b.innerHTML = "<span>🎉 你赢啦！🎉</span>";
+  document.body.appendChild(b);
+  setTimeout(() => b.remove(), 2600);
+}
+
+// ---------- 提示文字 ----------
+function setTip(t, bg) {
+  const el = document.getElementById("tip");
+  el.textContent = t;
+  el.style.background = bg || "#fff";
+}
+
+// ---------- 难度切换 ----------
+document.getElementById("levels").addEventListener("click", e => {
+  const btn = e.target.closest(".lv-btn");
+  if (!btn) return;
+  document.querySelectorAll(".lv-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  N = parseInt(btn.dataset.n, 10);
+  beep(520, 0.1);
+  newGame();
+});
+
+// 主题切换：保留当前题目，只更换图案
+document.getElementById("themes").addEventListener("click", e => {
+  const btn = e.target.closest(".lv-btn");
+  if (!btn) return;
+  document.querySelectorAll("#themes .lv-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  theme = btn.dataset.t;
+  ICONS = THEMES[theme];
+  beep(600, 0.1);
+  renderBoard();
+  renderPalette();
+});
+
+document.getElementById("hintBtn").onclick = hint;
+document.getElementById("newBtn").onclick = () => { beep(520, 0.1); newGame(); };
+
+// 启动
+newGame();
+</script>
+</body>
+</html>

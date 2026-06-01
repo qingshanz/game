@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>📦 立体图形 · 小朋友学几何</title>
+<style>
+  :root { --shadow: rgba(0,0,0,.14); }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Comic Sans MS", system-ui, sans-serif;
+    background: linear-gradient(160deg, #e3f2fd, #ede7f6);
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 12px 12px 24px; color: #283593; user-select: none;
+  }
+  h1 { font-size: clamp(22px, 5.6vw, 38px); margin: 2px 0; text-shadow: 2px 2px 0 #fff; text-align: center; }
+  .tip {
+    font-size: clamp(15px, 3.6vw, 20px); margin: 8px 0; background: #fff;
+    padding: 8px 16px; border-radius: 999px; box-shadow: 0 3px 10px var(--shadow);
+    min-height: 1.4em; text-align: center; color: #455a64; max-width: 92vw;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+  .pick-btn {
+    font-size: clamp(13px, 3.6vw, 18px); font-weight: 700; padding: 8px 14px;
+    border: none; border-radius: 16px; background: #fff; color: #3949ab;
+    cursor: pointer; box-shadow: 0 4px 0 #c5cae9; transition: transform .08s, background .2s;
+  }
+  .pick-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #c5cae9; }
+  .pick-btn.active { background: #5c6bc0; box-shadow: 0 4px 0 #303f9f; color: #fff; }
+
+  /* 图形展示台 */
+  .stage {
+    background: #fff; border-radius: 26px; box-shadow: 0 8px 22px var(--shadow);
+    padding: 14px 18px 18px; margin: 8px 0 14px; text-align: center;
+    width: min(86vw, 380px);
+  }
+  .stage svg { width: min(58vw, 30vh, 220px); height: auto; cursor: pointer; }
+  .shape-name { font-size: clamp(28px, 8vw, 44px); font-weight: 800; color: #d84315; line-height: 1.1; }
+  .shape-pin { font-size: clamp(18px, 4.6vw, 26px); color: #1e88e5; font-weight: 700; }
+  .shape-feat { font-size: clamp(15px, 4vw, 20px); color: #607d8b; margin-top: 4px; }
+  .shape-feat .real { font-size: 1.5em; vertical-align: middle; }
+  .quiz-q { font-size: clamp(17px, 4.4vw, 23px); color: #5c6bc0; font-weight: 700; margin-top: 4px; }
+
+  /* 选项（找一找） */
+  .options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: min(92vw, 420px); }
+  .opt {
+    border: none; border-radius: 18px; cursor: pointer; background: #fff;
+    box-shadow: 0 5px 0 #00000018; padding: 14px 8px; transition: transform .08s;
+    font-size: clamp(22px, 6vw, 30px); font-weight: 800; color: #4e342e;
+  }
+  .opt:active { transform: translateY(3px); }
+  .opt.correct { background: #66bb6a; color: #fff; animation: pop .5s; }
+  .opt.wrong { background: #ef5350; color: #fff; animation: shake .35s; }
+  .opt:disabled { opacity: .6; }
+
+  /* 浏览导航 */
+  .nav { display: flex; gap: 14px; align-items: center; justify-content: center; }
+  .nav-btn {
+    font-size: clamp(16px, 4.4vw, 22px); font-weight: 700; padding: 12px 22px;
+    border: none; border-radius: 16px; background: #80d8ff; color: #01579b;
+    cursor: pointer; box-shadow: 0 4px 0 #4fc3f7;
+  }
+  .nav-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #4fc3f7; }
+
+  .tools { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+  .tool-btn {
+    font-size: clamp(15px, 4vw, 19px); font-weight: 700; padding: 11px 22px;
+    border: none; border-radius: 16px; background: #ffd54f; color: #6d4c41;
+    cursor: pointer; box-shadow: 0 4px 0 #f9a825;
+  }
+  .tool-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #f9a825; }
+
+  @keyframes pop { 0%{transform:scale(1)} 50%{transform:scale(1.16)} 100%{transform:scale(1)} }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+  .star { position: fixed; top: -40px; font-size: 28px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .9; } }
+</style>
+</head>
+<body>
+  <h1>📦 郑直的立体图形 🔷</h1>
+  <div class="tip" id="tip">认一认这些立体图形，它们藏在生活里哦！</div>
+
+  <div class="row" id="modes">
+    <button class="pick-btn active" data-m="learn">📚 认一认</button>
+    <button class="pick-btn" data-m="quiz">🔍 找一找</button>
+  </div>
+
+  <div class="stage" id="stage"></div>
+
+  <!-- 找一找：选项 -->
+  <div class="options" id="options" style="display:none"></div>
+
+  <!-- 认一认：翻页 -->
+  <div class="nav" id="nav">
+    <button class="nav-btn" id="prevBtn">⬅️ 上一个</button>
+    <button class="nav-btn" id="nextBtn">下一个 ➡️</button>
+  </div>
+
+  <div class="tools">
+    <button class="tool-btn" id="speakBtn">🔊 再读一遍</button>
+  </div>
+
+  <div id="confetti"></div>
+
+<script>
+/* =======================================================================
+   立体图形 —— 几何启蒙
+   认一认（浏览学习）/ 找一找（看图选名称）两种模式。
+   用 SVG 伪 3D 呈现立体图形，配生活实物类比，帮助空间认知。
+   ======================================================================= */
+
+const CHILD_NAME = "郑直";
+
+// ---------- SVG 立体图形（统一 viewBox 0 0 120 120，伪 3D） ----------
+function sphere() {
+  return `<svg viewBox="0 0 120 120"><defs>
+    <radialGradient id="sg" cx="38%" cy="34%" r="70%">
+      <stop offset="0%" stop-color="#ff8a80"/><stop offset="55%" stop-color="#ef5350"/><stop offset="100%" stop-color="#b71c1c"/>
+    </radialGradient></defs>
+    <ellipse cx="60" cy="104" rx="34" ry="7" fill="#00000018"/>
+    <circle cx="60" cy="58" r="44" fill="url(#sg)"/>
+    <ellipse cx="46" cy="42" rx="13" ry="8" fill="#ffffff55"/></svg>`;
+}
+function cube() {
+  return `<svg viewBox="0 0 120 120">
+    <ellipse cx="62" cy="108" rx="36" ry="6" fill="#00000018"/>
+    <polygon points="32,52 56,36 104,36 80,52" fill="#ffcc80"/>
+    <polygon points="32,52 80,52 80,102 32,102" fill="#ff9800"/>
+    <polygon points="80,52 104,36 104,86 80,102" fill="#e65100"/></svg>`;
+}
+function cuboid() {
+  return `<svg viewBox="0 0 120 120">
+    <ellipse cx="60" cy="106" rx="44" ry="6" fill="#00000018"/>
+    <polygon points="22,54 40,40 108,40 90,54" fill="#90caf9"/>
+    <polygon points="22,54 90,54 90,98 22,98" fill="#42a5f5"/>
+    <polygon points="90,54 108,40 108,84 90,98" fill="#1565c0"/></svg>`;
+}
+function cylinder() {
+  return `<svg viewBox="0 0 120 120">
+    <ellipse cx="60" cy="108" rx="30" ry="6" fill="#00000018"/>
+    <path d="M32,34 L32,90 A28,9 0 0 0 88,90 L88,34 Z" fill="#66bb6a"/>
+    <ellipse cx="60" cy="34" rx="28" ry="9" fill="#a5d6a7"/>
+    <ellipse cx="60" cy="34" rx="28" ry="9" fill="none" stroke="#388e3c" stroke-width="1.5"/></svg>`;
+}
+function cone() {
+  return `<svg viewBox="0 0 120 120">
+    <ellipse cx="60" cy="100" rx="30" ry="7" fill="#00000018"/>
+    <ellipse cx="60" cy="92" rx="30" ry="9" fill="#7e57c2"/>
+    <polygon points="60,20 30,92 90,92" fill="#9575cd"/>
+    <polygon points="60,20 60,92 90,92" fill="#673ab7"/></svg>`;
+}
+function pyramid() {
+  return `<svg viewBox="0 0 120 120">
+    <ellipse cx="60" cy="104" rx="38" ry="6" fill="#00000018"/>
+    <polygon points="60,22 26,84 60,100" fill="#ffd54f"/>
+    <polygon points="60,22 94,84 60,100" fill="#f9a825"/>
+    <polygon points="26,84 60,100 94,84 60,76" fill="#c87f00"/></svg>`;
+}
+
+// 六种立体图形
+const SHAPES = [
+  { name: "球体",   p: "qiú tǐ",        emoji: "⚽", feat: "圆圆的，到处滚",   svg: sphere },
+  { name: "正方体", p: "zhèng fāng tǐ", emoji: "🎲", feat: "六个一样的方面",   svg: cube },
+  { name: "长方体", p: "cháng fāng tǐ", emoji: "📦", feat: "像积木和盒子",     svg: cuboid },
+  { name: "圆柱",   p: "yuán zhù",      emoji: "🥫", feat: "上下圆圆，会滚动", svg: cylinder },
+  { name: "圆锥",   p: "yuán zhuī",     emoji: "🍦", feat: "尖尖的，像帽子",   svg: cone },
+  { name: "金字塔", p: "jīn zì tǎ",     emoji: "🔺", feat: "尖尖的，四面斜坡", svg: pyramid },
+];
+
+let mode = "learn";   // learn | quiz
+let idx = 0;          // 浏览索引
+let target = null;    // 测试目标
+let locked = false;
+
+// ---------- 音效 ----------
+let actx = null;
+function beep(freq, dur = 0.12, type = "sine", vol = 0.15) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(vol, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+function playWin() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.18, "triangle", 0.2), i * 150)); }
+
+// ---------- 语音 ----------
+let chosenVoice = null;
+function loadVoices() {
+  const zh = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith("zh"));
+  let p = zh.findIndex(v => v.localService && /tingting|婷婷|meijia|美佳|female|女/i.test(v.name));
+  if (p < 0) p = zh.findIndex(v => v.localService);
+  if (p < 0) p = 0;
+  chosenVoice = zh[p] || null;
+}
+if ("speechSynthesis" in window) { speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "zh-CN"; if (chosenVoice) u.voice = chosenVoice;
+    u.rate = 0.85; u.pitch = 1.05; speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ---------- 认一认：浏览 ----------
+function renderLearn() {
+  const s = SHAPES[idx];
+  document.getElementById("stage").innerHTML =
+    `<div id="svgBox">${s.svg()}</div>
+     <div class="shape-name">${s.name}</div>
+     <div class="shape-pin">${s.p}</div>
+     <div class="shape-feat">${s.feat} <span class="real">${s.emoji}</span></div>`;
+  document.getElementById("svgBox").querySelector("svg").onclick = () => speak(s.name);
+  setTip(`第 ${idx + 1} / ${SHAPES.length} 个 · 点图形听名字 👆`);
+  speak(s.name);
+}
+
+// ---------- 找一找：出题 ----------
+function renderQuiz() {
+  target = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+  const distractors = shuffle(SHAPES.filter(s => s.name !== target.name)).slice(0, 3);
+  const opts = shuffle([target, ...distractors]);
+  document.getElementById("stage").innerHTML =
+    `<div id="svgBox">${target.svg()}</div>
+     <div class="quiz-q">这是什么立体图形？</div>`;
+  document.getElementById("svgBox").querySelector("svg").onclick = () => speak("这是什么立体图形呀");
+  const box = document.getElementById("options");
+  box.innerHTML = "";
+  opts.forEach(s => {
+    const b = document.createElement("button");
+    b.className = "opt";
+    b.textContent = s.name;
+    b.onclick = () => check(s, b);
+    box.appendChild(b);
+  });
+  setTip("看看这个立体图形，选出它的名字 😊");
+  speak("这是什么立体图形呀？");
+}
+
+function check(s, btn) {
+  if (locked) return;
+  if (s.name === target.name) {
+    locked = true;
+    btn.classList.add("correct");
+    [...document.getElementById("options").children].forEach(b => b.disabled = true);
+    setTip(`答对啦！这是${target.name}，${target.feat} ${target.emoji}`, "#c8f7c5");
+    beep(660, 0.12, "triangle"); playWin(); confetti();
+    speak(`答对了！${target.name}`);
+    setTimeout(renderQuiz, 2100);
+  } else {
+    btn.classList.add("wrong");
+    beep(220, 0.12, "square");
+    setTip("不是这个哦，再看看形状 🤔");
+    speak("再看看，试一次");
+    setTimeout(() => { btn.classList.remove("wrong"); btn.disabled = false; }, 500);
+    btn.disabled = true;
+  }
+}
+
+// ---------- 撒花 ----------
+function confetti() {
+  const box = document.getElementById("confetti");
+  const emojis = ["🌟","🎉","⭐","🔷","🎈","💖","✨","📦"];
+  for (let i = 0; i < 34; i++) {
+    const st = document.createElement("div");
+    st.className = "star";
+    st.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    st.style.left = Math.random() * 100 + "vw";
+    st.style.animationDuration = (1.6 + Math.random() * 1.8) + "s";
+    box.appendChild(st);
+    setTimeout(() => st.remove(), 3500);
+  }
+}
+
+function setTip(t, bg) {
+  const el = document.getElementById("tip");
+  el.textContent = t;
+  el.style.background = bg || "#fff";
+}
+
+// ---------- 切换模式 ----------
+function applyMode() {
+  locked = false;
+  const isLearn = mode === "learn";
+  document.getElementById("nav").style.display = isLearn ? "flex" : "none";
+  document.getElementById("options").style.display = isLearn ? "none" : "grid";
+  if (isLearn) renderLearn(); else renderQuiz();
+}
+
+function speakCurrent() {
+  if (mode === "learn") speak(SHAPES[idx].name);
+  else if (target) speak(target.name);
+}
+
+// ---------- 事件 ----------
+document.getElementById("modes").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#modes .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  mode = btn.dataset.m; beep(600, 0.1); applyMode();
+});
+document.getElementById("prevBtn").onclick = () => { idx = (idx - 1 + SHAPES.length) % SHAPES.length; beep(440, 0.08); renderLearn(); };
+document.getElementById("nextBtn").onclick = () => { idx = (idx + 1) % SHAPES.length; beep(560, 0.08); renderLearn(); };
+document.getElementById("speakBtn").onclick = speakCurrent;
+
+// 启动
+applyMode();
+</script>
+</body>
+</html>

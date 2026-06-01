@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🌀 走迷宫 · 小朋友练方向</title>
+<style>
+  :root { --shadow: rgba(0,0,0,.16); --wall: #5d4037; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Comic Sans MS", system-ui, sans-serif;
+    background: linear-gradient(160deg, #c8e6c9, #fff3c4);
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 12px 12px 24px; color: #2e7d32; user-select: none;
+  }
+  h1 { font-size: clamp(22px, 5.6vw, 38px); margin: 2px 0; text-shadow: 2px 2px 0 #fff; text-align: center; }
+  .tip {
+    font-size: clamp(15px, 3.6vw, 20px); margin: 8px 0; background: #fff;
+    padding: 8px 16px; border-radius: 999px; box-shadow: 0 3px 10px var(--shadow);
+    min-height: 1.4em; text-align: center; color: #455a64; max-width: 92vw;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+  .pick-btn {
+    font-size: clamp(13px, 3.6vw, 18px); font-weight: 700; padding: 8px 14px;
+    border: none; border-radius: 16px; background: #fff; color: #388e3c;
+    cursor: pointer; box-shadow: 0 4px 0 #aed6b0; transition: transform .08s, background .2s;
+  }
+  .pick-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #aed6b0; }
+  .pick-btn.active { background: #66bb6a; box-shadow: 0 4px 0 #2e7d32; color: #fff; }
+
+  #maze {
+    display: grid; background: var(--wall); border: 4px solid var(--wall);
+    border-radius: 8px; box-shadow: 0 8px 22px var(--shadow); margin: 8px 0 14px;
+  }
+  .cell { background: #fff; display: flex; align-items: center; justify-content: center; line-height: 1; }
+  .cell.trail { background: #fff59d; }
+  .cell.goalcell { background: #ffe0b2; }
+
+  /* 方向键 */
+  .pad { display: grid; grid-template-columns: repeat(3, 60px); grid-template-rows: repeat(3, 60px); gap: 8px; justify-content: center; margin-bottom: 8px; }
+  .dpad-btn {
+    border: none; border-radius: 16px; background: #66bb6a; color: #fff;
+    font-size: 30px; cursor: pointer; box-shadow: 0 4px 0 #2e7d32;
+  }
+  .dpad-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #2e7d32; }
+  .dpad-up { grid-area: 1 / 2; } .dpad-left { grid-area: 2 / 1; }
+  .dpad-right { grid-area: 2 / 3; } .dpad-down { grid-area: 3 / 2; }
+  .dpad-mid { grid-area: 2 / 2; display: flex; align-items: center; justify-content: center; font-size: 26px; }
+
+  .tools { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .tool-btn {
+    font-size: clamp(15px, 4vw, 19px); font-weight: 700; padding: 11px 22px;
+    border: none; border-radius: 16px; background: #80d8ff; color: #01579b;
+    cursor: pointer; box-shadow: 0 4px 0 #4fc3f7;
+  }
+  .tool-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #4fc3f7; }
+
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+  .star { position: fixed; top: -40px; font-size: 28px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .9; } }
+</style>
+</head>
+<body>
+  <h1>🌀 郑直的走迷宫 🧭</h1>
+  <div class="tip" id="tip">用下面的方向键，帮它走到终点吧！</div>
+
+  <div class="row" id="themes">
+    <button class="pick-btn active" data-t="mouse">🐭 老鼠找奶酪</button>
+    <button class="pick-btn" data-t="car">🚗 小车回家</button>
+    <button class="pick-btn" data-t="bee">🐝 蜜蜂采花</button>
+  </div>
+  <div class="row" id="levels">
+    <button class="pick-btn active" data-n="5">🐣 小迷宫</button>
+    <button class="pick-btn" data-n="7">🐰 中迷宫</button>
+    <button class="pick-btn" data-n="9">🦁 大迷宫</button>
+  </div>
+
+  <div id="maze"></div>
+
+  <div class="pad">
+    <button class="dpad-btn dpad-up" data-d="0">⬆️</button>
+    <button class="dpad-btn dpad-left" data-d="3">⬅️</button>
+    <div class="dpad-mid" id="padMid">🐭</div>
+    <button class="dpad-btn dpad-right" data-d="1">➡️</button>
+    <button class="dpad-btn dpad-down" data-d="2">⬇️</button>
+  </div>
+
+  <div class="tools">
+    <button class="tool-btn" id="newBtn">🔄 换个迷宫</button>
+  </div>
+
+  <div id="confetti"></div>
+
+<script>
+/* =======================================================================
+   走迷宫 —— 方向感与路径规划
+   随机生成迷宫，用方向键（或键盘方向键）把角色带到终点。
+   锻炼学前儿童的方向感、空间路径规划与手眼协调。
+   ======================================================================= */
+
+const CHILD_NAME = "郑直";
+
+const THEMES = {
+  mouse: { player: "🐭", goal: "🧀", win: "老鼠吃到奶酪啦！" },
+  car:   { player: "🚗", goal: "🏠", win: "小车顺利到家啦！" },
+  bee:   { player: "🐝", goal: "🌸", win: "蜜蜂找到花朵啦！" },
+};
+let theme = "mouse";
+let N = 5;
+let cells = [];           // cells[r][c] = { walls:[上,右,下,左], visited }
+let pos = { r: 0, c: 0 }; // 角色位置
+let goal = { r: 0, c: 0 };
+let won = false;
+
+// 方向：dr,dc,本格墙索引,邻格墙索引
+const DIRS = [
+  { dr: -1, dc: 0, a: 0, b: 2 }, // 上
+  { dr: 0,  dc: 1, a: 1, b: 3 }, // 右
+  { dr: 1,  dc: 0, a: 2, b: 0 }, // 下
+  { dr: 0,  dc: -1, a: 3, b: 1 }, // 左
+];
+
+// ---------- 音效 ----------
+let actx = null;
+function beep(freq, dur = 0.1, type = "sine", vol = 0.14) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(vol, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+function playWin() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.18, "triangle", 0.2), i * 150)); }
+
+// ---------- 语音 ----------
+let chosenVoice = null;
+function loadVoices() {
+  const zh = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith("zh"));
+  let p = zh.findIndex(v => v.localService && /tingting|婷婷|meijia|美佳|female|女/i.test(v.name));
+  if (p < 0) p = zh.findIndex(v => v.localService);
+  if (p < 0) p = 0;
+  chosenVoice = zh[p] || null;
+}
+if ("speechSynthesis" in window) { speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "zh-CN"; if (chosenVoice) u.voice = chosenVoice;
+    u.rate = 0.95; u.pitch = 1.05; speechSynthesis.speak(u);
+  } catch (e) {}
+}
+function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+// ---------- 生成迷宫（递归回溯，迭代实现） ----------
+function genMaze() {
+  cells = Array.from({ length: N }, () =>
+    Array.from({ length: N }, () => ({ walls: [true, true, true, true], visited: false })));
+  const stack = [[0, 0]];
+  cells[0][0].visited = true;
+  while (stack.length) {
+    const [r, c] = stack[stack.length - 1];
+    const nbrs = DIRS
+      .map(d => ({ d, nr: r + d.dr, nc: c + d.dc }))
+      .filter(o => o.nr >= 0 && o.nr < N && o.nc >= 0 && o.nc < N && !cells[o.nr][o.nc].visited);
+    if (nbrs.length) {
+      const { d, nr, nc } = pick(nbrs);
+      cells[r][c].walls[d.a] = false;
+      cells[nr][nc].walls[d.b] = false;
+      cells[nr][nc].visited = true;
+      stack.push([nr, nc]);
+    } else {
+      stack.pop();
+    }
+  }
+}
+
+// ---------- 渲染 ----------
+function render() {
+  const maze = document.getElementById("maze");
+  const size = { 5: "clamp(48px,15vw,66px)", 7: "clamp(36px,11vw,50px)", 9: "clamp(28px,8.6vw,40px)" }[N];
+  maze.style.gridTemplateColumns = `repeat(${N}, ${size})`;
+  maze.style.gap = "0px";
+  maze.innerHTML = "";
+  const W = "3px solid var(--wall)", O = "3px solid transparent";
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      const cell = cells[r][c];
+      const d = document.createElement("div");
+      d.className = "cell";
+      if (r === goal.r && c === goal.c) d.classList.add("goalcell");
+      d.style.width = size; d.style.height = size;
+      d.style.fontSize = `calc(${size} * 0.68)`;
+      d.style.borderTop = cell.walls[0] ? W : O;
+      d.style.borderRight = cell.walls[1] ? W : O;
+      d.style.borderBottom = cell.walls[2] ? W : O;
+      d.style.borderLeft = cell.walls[3] ? W : O;
+      if (r === pos.r && c === pos.c) d.textContent = THEMES[theme].player;
+      else if (r === goal.r && c === goal.c) d.textContent = THEMES[theme].goal;
+      maze.appendChild(d);
+    }
+  }
+}
+
+// ---------- 移动 ----------
+function move(di) {
+  if (won) return;
+  const d = DIRS[di];
+  const cell = cells[pos.r][pos.c];
+  if (cell.walls[d.a]) { beep(200, 0.08, "square"); return; }  // 撞墙
+  pos = { r: pos.r + d.dr, c: pos.c + d.dc };
+  beep(520, 0.06);
+  render();
+  if (pos.r === goal.r && pos.c === goal.c) win();
+}
+
+// ---------- 新迷宫 ----------
+function newMaze() {
+  won = false;
+  genMaze();
+  pos = { r: 0, c: 0 };
+  goal = { r: N - 1, c: N - 1 };
+  document.getElementById("padMid").textContent = THEMES[theme].player;
+  render();
+  setTip(`帮${THEMES[theme].player}走到${THEMES[theme].goal}那里去！`);
+}
+
+// ---------- 胜利 ----------
+function win() {
+  won = true;
+  setTip(`🎉 ${THEMES[theme].win}`);
+  playWin(); confetti();
+  speak(`${CHILD_NAME}真棒！${THEMES[theme].win}`);
+}
+
+// ---------- 撒花 ----------
+function confetti() {
+  const box = document.getElementById("confetti");
+  const emojis = ["🌟","🎉","⭐","🎈","💖","✨", THEMES[theme].player, THEMES[theme].goal];
+  for (let i = 0; i < 36; i++) {
+    const s = document.createElement("div");
+    s.className = "star";
+    s.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = (1.6 + Math.random() * 1.8) + "s";
+    box.appendChild(s);
+    setTimeout(() => s.remove(), 3500);
+  }
+}
+
+function setTip(t) { document.getElementById("tip").textContent = t; }
+
+// ---------- 事件 ----------
+document.querySelectorAll(".dpad-btn").forEach(b => {
+  b.onclick = () => move(parseInt(b.dataset.d, 10));
+});
+document.addEventListener("keydown", e => {
+  const map = { ArrowUp: 0, ArrowRight: 1, ArrowDown: 2, ArrowLeft: 3 };
+  if (e.key in map) { e.preventDefault(); move(map[e.key]); }
+});
+document.getElementById("themes").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#themes .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  theme = btn.dataset.t; beep(600, 0.1); newMaze();
+});
+document.getElementById("levels").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#levels .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  N = parseInt(btn.dataset.n, 10); beep(520, 0.1); newMaze();
+});
+document.getElementById("newBtn").onclick = () => { beep(520, 0.1); newMaze(); };
+
+// 启动
+newMaze();
+</script>
+</body>
+</html>

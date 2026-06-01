@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🗂️ 分类归纳 · 小朋友学整理</title>
+<style>
+  :root { --shadow: rgba(0,0,0,.14); }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Comic Sans MS", system-ui, sans-serif;
+    background: linear-gradient(160deg, #ffe9c2, #d6f5e3);
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 12px 12px 24px; color: #ef6c00; user-select: none;
+  }
+  h1 { font-size: clamp(22px, 5.6vw, 38px); margin: 2px 0; text-shadow: 2px 2px 0 #fff; text-align: center; }
+  .tip {
+    font-size: clamp(15px, 3.6vw, 20px); margin: 8px 0; background: #fff;
+    padding: 8px 16px; border-radius: 999px; box-shadow: 0 3px 10px var(--shadow);
+    min-height: 1.4em; text-align: center; color: #455a64; max-width: 92vw;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+  .pick-btn {
+    font-size: clamp(13px, 3.6vw, 18px); font-weight: 700; padding: 8px 14px;
+    border: none; border-radius: 16px; background: #fff; color: #e65100;
+    cursor: pointer; box-shadow: 0 4px 0 #f3c98f; transition: transform .08s, background .2s;
+  }
+  .pick-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #f3c98f; }
+  .pick-btn.active { background: #ff9800; box-shadow: 0 4px 0 #e65100; color: #fff; }
+
+  /* 待分区 */
+  .pool {
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+    background: #fff; border-radius: 20px; box-shadow: 0 6px 18px var(--shadow);
+    padding: 12px; margin: 6px 0 12px; min-height: 70px; width: min(94vw, 460px);
+  }
+  .item {
+    width: clamp(48px, 14vw, 64px); height: clamp(48px, 14vw, 64px);
+    font-size: clamp(30px, 9vw, 44px); border: none; border-radius: 14px;
+    background: #fff8ef; cursor: pointer; line-height: 1;
+    box-shadow: 0 3px 0 #00000012; transition: transform .08s, border-color .15s;
+    border: 3px solid transparent;
+  }
+  .item:active { transform: scale(.9); }
+  .item.selected { border-color: #ff9800; background: #fff3e0; transform: scale(1.1); }
+
+  /* 篮子区 */
+  .baskets { display: flex; gap: clamp(8px, 2.5vw, 16px); flex-wrap: wrap; justify-content: center; width: min(96vw, 480px); }
+  .basket {
+    flex: 1 1 0; min-width: 92px; background: #fff; border-radius: 18px;
+    box-shadow: 0 5px 0 #00000014; padding: 10px 6px; cursor: pointer;
+    text-align: center; border: 4px solid #ffe0b2; transition: transform .08s, border-color .15s, background .15s;
+  }
+  .basket:active { transform: translateY(3px); }
+  .basket.wrong { border-color: #ef5350; background: #ffebee; animation: shake .35s; }
+  .basket.good { border-color: #66bb6a; animation: pop .4s; }
+  .basket .b-head { font-size: clamp(15px, 4vw, 19px); font-weight: 800; color: #5d4037; }
+  .basket .b-icon { font-size: clamp(26px, 8vw, 38px); line-height: 1.2; }
+  .basket .b-items { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; min-height: 26px; margin-top: 4px; font-size: clamp(16px, 5vw, 24px); }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+  @keyframes pop { 0%{transform:scale(1)} 50%{transform:scale(1.08)} 100%{transform:scale(1)} }
+
+  .tools { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+  .tool-btn {
+    font-size: clamp(15px, 4vw, 19px); font-weight: 700; padding: 11px 22px;
+    border: none; border-radius: 16px; background: #80d8ff; color: #01579b;
+    cursor: pointer; box-shadow: 0 4px 0 #4fc3f7;
+  }
+  .tool-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #4fc3f7; }
+
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+  .star { position: fixed; top: -40px; font-size: 28px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .9; } }
+</style>
+</head>
+<body>
+  <h1>🗂️ 郑直的分类归纳 🧺</h1>
+  <div class="tip" id="tip">先选一个图案，再点它应该回的篮子！</div>
+
+  <div class="row" id="levels">
+    <button class="pick-btn active" data-l="2">🐣 2 个篮子</button>
+    <button class="pick-btn" data-l="3">🐰 3 个篮子</button>
+    <button class="pick-btn" data-l="4">🦁 4 个篮子</button>
+  </div>
+
+  <div class="pool" id="pool"></div>
+  <div class="baskets" id="baskets"></div>
+
+  <div class="tools">
+    <button class="tool-btn" id="newBtn">🔄 换一批</button>
+  </div>
+
+  <div id="confetti"></div>
+
+<script>
+/* =======================================================================
+   分类归纳 —— 把图案按类别放进对应篮子
+   先选物品，再点篮子（两步点击，移动端更稳）。
+   锻炼学前儿童的分类、归纳与整理能力。
+   ======================================================================= */
+
+const CHILD_NAME = "郑直";
+
+// 类别库：每类一个篮子标识 + 一组成员图案
+const CATS = {
+  animal:  { label: "动物", icon: "🐾", items: ["🐶","🐱","🐰","🐻","🦊","🐼","🐯","🐸"] },
+  fruit:   { label: "水果", icon: "🍎", items: ["🍎","🍌","🍇","🍓","🍊","🍉","🍑","🍐"] },
+  vehicle: { label: "交通", icon: "🚗", items: ["🚗","🚌","🚓","🚑","✈️","🚂","🚀","⛵"] },
+  clothes: { label: "衣物", icon: "👕", items: ["👕","👖","🧦","👗","🧤","🎩","👟","🧣"] },
+};
+const CAT_ORDER = ["animal", "fruit", "vehicle", "clothes"];
+const PER_CAT = 3;   // 每类放几个
+
+let level = 2;            // 篮子数
+let items = [];          // 待分：[{emoji, cat}]
+let baskets = [];        // 当前类别 key 列表
+let selIdx = null;       // 选中的待分项索引
+
+// ---------- 音效 ----------
+let actx = null;
+function beep(freq, dur = 0.12, type = "sine", vol = 0.15) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(vol, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+function playWin() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.18, "triangle", 0.2), i * 150)); }
+
+// ---------- 语音 ----------
+let chosenVoice = null;
+function loadVoices() {
+  const zh = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith("zh"));
+  let p = zh.findIndex(v => v.localService && /tingting|婷婷|meijia|美佳|female|女/i.test(v.name));
+  if (p < 0) p = zh.findIndex(v => v.localService);
+  if (p < 0) p = 0;
+  chosenVoice = zh[p] || null;
+}
+if ("speechSynthesis" in window) { speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "zh-CN"; if (chosenVoice) u.voice = chosenVoice;
+    u.rate = 0.9; u.pitch = 1.05; speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ---------- 新一批 ----------
+function newGame() {
+  baskets = CAT_ORDER.slice(0, level);
+  items = [];
+  baskets.forEach(cat => {
+    const chosen = shuffle([...CATS[cat].items]).slice(0, PER_CAT);
+    chosen.forEach(emoji => items.push({ emoji, cat }));
+  });
+  shuffle(items);
+  selIdx = null;
+  render();
+  setTip("先选一个图案，再点它应该回的篮子！");
+}
+
+// ---------- 渲染 ----------
+function render() {
+  // 待分池
+  const pool = document.getElementById("pool");
+  pool.innerHTML = "";
+  if (items.length === 0) {
+    pool.innerHTML = `<div style="font-size:clamp(18px,5vw,26px);color:#43a047;font-weight:800">全部整理好啦！🎉</div>`;
+  }
+  items.forEach((it, i) => {
+    const b = document.createElement("button");
+    b.className = "item" + (selIdx === i ? " selected" : "");
+    b.textContent = it.emoji;
+    b.onclick = () => { selIdx = i; beep(620, 0.07); render(); setTip(`把 ${it.emoji} 放进对的篮子里 👇`); };
+    pool.appendChild(b);
+  });
+
+  // 篮子
+  const box = document.getElementById("baskets");
+  box.innerHTML = "";
+  baskets.forEach(cat => {
+    const c = CATS[cat];
+    const d = document.createElement("div");
+    d.className = "basket";
+    d.dataset.cat = cat;
+    d.innerHTML = `<div class="b-icon">${c.icon}</div><div class="b-head">${c.label}</div>
+                   <div class="b-items" data-bin="${cat}"></div>`;
+    d.onclick = () => dropTo(cat, d);
+    box.appendChild(d);
+  });
+  // 回填已收集的（重新统计 collected 存在 d-items 里需要持久；这里用单独的 collected map）
+  for (const cat in collected) {
+    const bin = box.querySelector(`.b-items[data-bin="${cat}"]`);
+    if (bin) bin.textContent = collected[cat].join("");
+  }
+}
+
+let collected = {};
+
+// ---------- 投放 ----------
+function dropTo(cat, el) {
+  if (selIdx === null) { setTip("先在上面选一个图案呀 👆"); beep(220, 0.1, "square"); return; }
+  const it = items[selIdx];
+  if (it.cat === cat) {
+    collected[cat] = collected[cat] || [];
+    collected[cat].push(it.emoji);
+    items.splice(selIdx, 1);
+    selIdx = null;
+    beep(700, 0.1);
+    el.classList.add("good");
+    setTimeout(() => el.classList.remove("good"), 400);
+    render();
+    if (items.length === 0) win();
+    else setTip("放对啦！继续整理 👍");
+  } else {
+    beep(220, 0.12, "square");
+    el.classList.add("wrong");
+    setTip(`${it.emoji} 不是${CATS[cat].label}哦，再想想 🤔`);
+    speak("这个不在这里哦");
+    setTimeout(() => el.classList.remove("wrong"), 400);
+  }
+}
+
+// ---------- 胜利 ----------
+function win() {
+  setTip("全部分类好啦！你真会整理 🌟");
+  playWin(); confetti();
+  speak(`${CHILD_NAME}真棒！全部整理好啦`);
+}
+
+// ---------- 撒花 ----------
+function confetti() {
+  const box = document.getElementById("confetti");
+  const emojis = ["🌟","🎉","⭐","🧺","🎈","💖","✨","🗂️"];
+  for (let i = 0; i < 36; i++) {
+    const s = document.createElement("div");
+    s.className = "star";
+    s.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = (1.6 + Math.random() * 1.8) + "s";
+    box.appendChild(s);
+    setTimeout(() => s.remove(), 3500);
+  }
+}
+
+function setTip(t) { document.getElementById("tip").textContent = t; }
+
+// ---------- 事件 ----------
+document.getElementById("levels").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#levels .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  level = parseInt(btn.dataset.l, 10); beep(520, 0.1); collected = {}; newGame();
+});
+document.getElementById("newBtn").onclick = () => { beep(520, 0.1); collected = {}; newGame(); };
+
+// 启动
+newGame();
+</script>
+</body>
+</html>
