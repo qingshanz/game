@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>👀 眼力追踪 · 紧盯小球</title>
+<style>
+  :root { --shadow: rgba(0,0,0,.16); }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Comic Sans MS", system-ui, sans-serif;
+    background: linear-gradient(160deg, #c8f7e8, #d6ecff 60%, #ffe9c7);
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 12px 12px 24px; color: #00695c; user-select: none;
+  }
+  h1 { font-size: clamp(22px, 5.6vw, 38px); margin: 2px 0; text-shadow: 2px 2px 0 #fff; text-align: center; }
+  .tip {
+    font-size: clamp(15px, 3.6vw, 20px); margin: 8px 0; background: #fff;
+    padding: 8px 16px; border-radius: 999px; box-shadow: 0 3px 10px var(--shadow);
+    min-height: 1.4em; text-align: center; color: #455a64; max-width: 92vw;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+  .pick-btn {
+    font-size: clamp(13px, 3.6vw, 18px); font-weight: 700; padding: 8px 14px;
+    border: none; border-radius: 16px; background: #fff; color: #00897b;
+    cursor: pointer; box-shadow: 0 4px 0 #b2dfdb; transition: transform .08s, background .2s;
+  }
+  .pick-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #b2dfdb; }
+  .pick-btn.active { background: #26a69a; box-shadow: 0 4px 0 #00796b; color: #fff; }
+
+  /* 舞台 */
+  .stage {
+    position: relative; margin: 14px 0 6px; max-width: 96vw;
+    height: clamp(96px, 30vw, 130px);
+    background: #fff; border-radius: 22px; box-shadow: 0 6px 18px var(--shadow);
+    padding: 0; overflow: hidden;
+  }
+  .box {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    border-radius: 16px;
+    transition: left .45s cubic-bezier(.45,.05,.3,1);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .lid {
+    position: absolute; inset: 0; border-radius: 16px;
+    background: linear-gradient(160deg, #4dd0e1, #0097a7);
+    box-shadow: inset 0 -6px 10px rgba(0,0,0,.18), 0 4px 8px rgba(0,0,0,.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(22px, 7vw, 34px);
+    transition: transform .35s, opacity .35s; cursor: pointer;
+  }
+  .lid::after { content: "🎁"; opacity: .9; }
+  .box.open .lid { transform: translateY(-130%) rotate(-12deg); opacity: 0; pointer-events: none; }
+  .ball {
+    width: 66%; height: 66%; border-radius: 50%;
+    background: radial-gradient(circle at 32% 30%, #fff6, #ff7043 55%, #e64a19);
+    box-shadow: 0 4px 8px rgba(0,0,0,.25);
+  }
+  .pit { width: 60%; height: 16%; border-radius: 50%; background: #00000010; }
+  .box.pickable .lid:active { transform: scale(.94); }
+  .box.moving { z-index: 5; }
+  .box.moving .lid {
+    transform: translateY(-9%) scale(1.05); filter: brightness(1.12);
+    box-shadow: inset 0 -6px 10px rgba(0,0,0,.18), 0 9px 16px rgba(0,0,0,.3);
+  }
+  .box.guess-wrong .lid { background: linear-gradient(160deg,#ef9a9a,#e53935); }
+  .box.win { animation: bounce .5s; }
+  @keyframes bounce { 0%,100%{transform:translateY(-50%)} 50%{transform:translateY(-66%)} }
+
+  .score { font-size: clamp(16px, 4.2vw, 21px); font-weight: 800; color: #f57f17; margin: 12px 0 0; }
+  .tools { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
+  .tool-btn {
+    font-size: clamp(15px, 4vw, 19px); font-weight: 700; padding: 11px 22px;
+    border: none; border-radius: 16px; background: #80d8ff; color: #01579b;
+    cursor: pointer; box-shadow: 0 4px 0 #4fc3f7;
+  }
+  .tool-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #4fc3f7; }
+  .tool-btn.speak { background: #ffd54f; color: #6d4c41; box-shadow: 0 4px 0 #f9a825; }
+  .tool-btn:disabled { opacity: .5; }
+
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+  .star { position: fixed; top: -40px; font-size: 28px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .9; } }
+</style>
+</head>
+<body>
+  <a id="backHome" href="index.html" style="position:fixed;top:10px;left:10px;z-index:9999;display:inline-flex;align-items:center;gap:4px;text-decoration:none;font-family:inherit;font-size:15px;font-weight:800;color:#fff;background:rgba(94,53,177,.85);padding:8px 14px;border-radius:999px;box-shadow:0 3px 8px rgba(0,0,0,.22);-webkit-tap-highlight-color:transparent;">⬅️ 返回</a>
+  <h1>👀 郑直的眼力追踪 ⚽</h1>
+  <div class="tip" id="tip">先记住小球在哪个盒子里！</div>
+
+  <div class="row" id="levels">
+    <button class="pick-btn active" data-l="easy">🐣 简单</button>
+    <button class="pick-btn" data-l="mid">🐰 普通</button>
+    <button class="pick-btn" data-l="hard">🦁 挑战</button>
+  </div>
+
+  <div class="stage" id="stage"></div>
+
+  <div class="score" id="score">🌟 答对 0 次</div>
+
+  <div class="tools">
+    <button class="tool-btn speak" id="speakBtn">🔊 读一遍</button>
+    <button class="tool-btn" id="newBtn">🔄 再来一局</button>
+  </div>
+
+  <div id="confetti"></div>
+
+<script>
+/* =======================================================================
+   眼力追踪 —— 动态专注力 / 视觉追踪
+   经典"猜球"玩法：先亮出小球藏在哪个盒子，盖上后盒子两两交换移动，
+   孩子要用眼睛紧紧盯住小球所在的盒子，交换结束后指出它的位置。
+   锻炼 5 岁儿童的动态注意力、视觉追踪与短时空间记忆。
+   ======================================================================= */
+
+const CHILD_NAME = "郑直";
+
+const LEVELS = {
+  easy: { n: 2, swaps: 2, speed: 950 },   // 2 个盒子，慢慢换 2 次
+  mid:  { n: 3, swaps: 3, speed: 880 },   // 3 个盒子，换 3 次
+  hard: { n: 3, swaps: 5, speed: 780 },   // 还是 3 个盒子，换 5 次、稍快一点
+};
+
+let level = "easy";
+let boxes = [];      // {el, ballEl, pos, ball}
+let phase = "idle";  // idle | swapping | guess | done
+let wins = 0;
+let boxW = 72, gap = 14;
+
+// ---------- 音效 ----------
+let actx = null;
+function beep(freq, dur = 0.12, type = "sine", vol = 0.15) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(vol, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+function playWin() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.18, "triangle", 0.2), i * 150)); }
+
+// ---------- 语音 ----------
+let chosenVoice = null;
+function loadVoices() {
+  const zh = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith("zh"));
+  let p = zh.findIndex(v => v.localService && /tingting|婷婷|meijia|美佳|female|女/i.test(v.name));
+  if (p < 0) p = zh.findIndex(v => v.localService);
+  if (p < 0) p = 0;
+  chosenVoice = zh[p] || null;
+}
+if ("speechSynthesis" in window) { speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "zh-CN"; if (chosenVoice) u.voice = chosenVoice;
+    u.rate = 0.95; u.pitch = 1.05; speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function setTip(t, bg) {
+  const el = document.getElementById("tip");
+  el.textContent = t; el.style.background = bg || "#fff";
+}
+function leftOf(pos) { return pos * (boxW + gap); }
+
+// ---------- 计算尺寸 ----------
+function computeSize(n) {
+  const avail = Math.min(window.innerWidth - 36, 460);
+  gap = 14;
+  boxW = Math.floor((avail - gap * (n - 1)) / n);
+  boxW = Math.max(48, Math.min(boxW, 92));
+}
+
+// ---------- 开新局 ----------
+async function newRound() {
+  const cfg = LEVELS[level];
+  computeSize(cfg.n);
+  phase = "idle";
+  setTip("先记住小球在哪个盒子里！");
+  document.getElementById("speakBtn").disabled = true;
+  document.getElementById("newBtn").disabled = true;
+
+  const stage = document.getElementById("stage");
+  stage.innerHTML = "";
+  const totalW = cfg.n * boxW + (cfg.n - 1) * gap;
+  stage.style.width = totalW + "px";
+
+  boxes = [];
+  const ballAt = Math.floor(Math.random() * cfg.n);
+  for (let i = 0; i < cfg.n; i++) {
+    const el = document.createElement("div");
+    el.className = "box";
+    el.style.width = boxW + "px";
+    el.style.height = boxW + "px";
+    el.style.left = leftOf(i) + "px";
+
+    const ballEl = document.createElement("div");
+    ballEl.className = i === ballAt ? "ball" : "pit";
+    const lid = document.createElement("div");
+    lid.className = "lid";
+
+    el.appendChild(ballEl);
+    el.appendChild(lid);
+    stage.appendChild(el);
+
+    const obj = { el, lid, pos: i, ball: i === ballAt };
+    lid.onclick = () => guess(obj);
+    boxes.push(obj);
+  }
+
+  // 1) 亮出小球（给足时间记住）
+  boxes.forEach(b => { if (b.ball) b.el.classList.add("open"); });
+  beep(700, 0.12, "triangle");
+  speak("看，小球在这里，盯住它！");
+  await sleep(2400);
+
+  // 2) 盖上
+  boxes.forEach(b => b.el.classList.remove("open"));
+  beep(420, 0.1);
+  await sleep(800);
+
+  // 3) 交换
+  phase = "swapping";
+  setTip("盯住小球，盒子要交换啦！👀");
+  for (let k = 0; k < cfg.swaps; k++) {
+    let a = Math.floor(Math.random() * cfg.n);
+    let b = Math.floor(Math.random() * cfg.n);
+    while (b === a) b = Math.floor(Math.random() * cfg.n);
+    const ba = boxes.find(x => x.pos === a);
+    const bb = boxes.find(x => x.pos === b);
+    ba.pos = b; bb.pos = a;
+    ba.el.classList.add("moving"); bb.el.classList.add("moving");
+    ba.el.style.left = leftOf(b) + "px";
+    bb.el.style.left = leftOf(a) + "px";
+    beep(520 + (k % 4) * 40, 0.06, "sine", 0.08);
+    await sleep(cfg.speed);
+    ba.el.classList.remove("moving"); bb.el.classList.remove("moving");
+    await sleep(180);   // 每次交换后稍作停顿，方便看清
+  }
+
+  // 4) 让孩子指认
+  phase = "guess";
+  boxes.forEach(b => b.el.classList.add("pickable"));
+  setTip("小球藏在哪个盒子里？点一点它！🤔");
+  speak("小球在哪里呀？点一点");
+  document.getElementById("speakBtn").disabled = false;
+  document.getElementById("newBtn").disabled = false;
+}
+
+// ---------- 指认判定 ----------
+function guess(obj) {
+  if (phase !== "guess") return;
+  phase = "done";
+  boxes.forEach(b => b.el.classList.remove("pickable"));
+  // 全部打开揭晓
+  boxes.forEach(b => b.el.classList.add("open"));
+
+  if (obj.ball) {
+    obj.el.classList.add("win");
+    wins++;
+    document.getElementById("score").textContent = `🌟 答对 ${wins} 次`;
+    setTip("找到啦！你的眼睛真厉害 🎉", "#c8f7c5");
+    playWin(); confetti();
+    speak(CHILD_NAME + "找对啦，眼睛真亮！");
+  } else {
+    obj.el.classList.add("guess-wrong");
+    beep(200, 0.16, "square");
+    const right = boxes.find(b => b.ball);
+    if (right) right.el.classList.add("win");
+    setTip("小球在亮起来的那个盒子里，下次盯紧点 💪");
+    speak("小球在这个盒子里哦，再试一次吧");
+  }
+  setTimeout(newRound, 2400);
+}
+
+// ---------- 撒花 ----------
+function confetti() {
+  const box = document.getElementById("confetti");
+  const emojis = ["🌟","🎉","⭐","⚽","👀","🎈","💖","✨"];
+  for (let i = 0; i < 34; i++) {
+    const s = document.createElement("div");
+    s.className = "star";
+    s.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = (1.6 + Math.random() * 1.8) + "s";
+    box.appendChild(s);
+    setTimeout(() => s.remove(), 3500);
+  }
+}
+
+// ---------- 事件 ----------
+document.getElementById("levels").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  if (phase === "swapping" || phase === "idle") return; // 交换/展示中不切换
+  document.querySelectorAll("#levels .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  level = btn.dataset.l; beep(520, 0.1); newRound();
+});
+document.getElementById("speakBtn").onclick = () => speak("小球在哪里呀？点一点");
+document.getElementById("newBtn").onclick = () => { beep(520, 0.1); newRound(); };
+window.addEventListener("resize", () => { if (phase === "guess" || phase === "done") return; });
+
+// 启动
+newRound();
+</script>
+</body>
+</html>

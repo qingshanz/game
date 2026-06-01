@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>📐 图形排序 · 小朋友学逻辑</title>
+<style>
+  :root { --shadow: rgba(0,0,0,.14); }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Comic Sans MS", system-ui, sans-serif;
+    background: linear-gradient(160deg, #d7eaff, #ffe7f3 60%, #fff6d6);
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 12px 12px 24px; color: #3949ab; user-select: none;
+  }
+  h1 { font-size: clamp(22px, 5.6vw, 38px); margin: 2px 0; text-shadow: 2px 2px 0 #fff; text-align: center; }
+  .tip {
+    font-size: clamp(15px, 3.6vw, 20px); margin: 8px 0; background: #fff;
+    padding: 8px 16px; border-radius: 999px; box-shadow: 0 3px 10px var(--shadow);
+    min-height: 1.4em; text-align: center; color: #455a64; max-width: 92vw;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+  .pick-btn {
+    font-size: clamp(13px, 3.6vw, 18px); font-weight: 700; padding: 8px 14px;
+    border: none; border-radius: 16px; background: #fff; color: #5e35b1;
+    cursor: pointer; box-shadow: 0 4px 0 #d1c4e9; transition: transform .08s, background .2s;
+  }
+  .pick-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #d1c4e9; }
+  .pick-btn.active { background: #7e57c2; box-shadow: 0 4px 0 #5e35b1; color: #fff; }
+
+  /* 已排好的队列 */
+  .target {
+    display: flex; gap: clamp(4px, 1.6vw, 10px); justify-content: center; align-items: center;
+    flex-wrap: nowrap; overflow-x: auto; max-width: 96vw; min-height: 92px;
+    background: #fff; padding: 10px clamp(8px,2vw,14px); border-radius: 20px;
+    box-shadow: 0 6px 18px var(--shadow); margin: 8px 0 4px;
+  }
+  .cell {
+    flex: 0 0 auto;
+    width: clamp(54px, 16vw, 80px); height: clamp(54px, 16vw, 80px);
+    border-radius: 14px; background: #f3f0fb; border: 3px dashed #c5cae9;
+    display: flex; align-items: center; justify-content: center; position: relative;
+  }
+  .cell .idx {
+    position: absolute; top: 2px; left: 6px; font-size: 13px; font-weight: 800; color: #b0bec5;
+  }
+  .cell.filled { background: #d7f5d2; border: 3px solid #81c784; animation: pop .4s; }
+  @keyframes pop { 0%{transform:scale(.6)} 60%{transform:scale(1.15)} 100%{transform:scale(1)} }
+
+  .arrow { font-size: clamp(15px, 4vw, 20px); color: #5e35b1; margin: 4px 0 6px; font-weight: 700; }
+
+  /* 可点击的图形池 */
+  .pool {
+    display: flex; gap: clamp(8px, 3vw, 16px); flex-wrap: wrap; justify-content: center;
+    align-items: center; width: min(94vw, 460px); min-height: 110px;
+  }
+  .shape {
+    border: none; background: transparent; cursor: pointer; padding: 4px;
+    transition: transform .1s; line-height: 0; border-radius: 16px;
+  }
+  .shape:active { transform: scale(.92); }
+  .shape.gone { opacity: 0; transform: scale(.4); pointer-events: none; transition: all .4s; }
+  .shape.wrong { animation: shake .35s; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+  .shape svg { display: block; filter: drop-shadow(0 4px 4px rgba(0,0,0,.18)); }
+
+  .score { font-size: clamp(16px, 4.2vw, 21px); font-weight: 800; color: #f57f17; margin: 12px 0 0; }
+  .tools { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
+  .tool-btn {
+    font-size: clamp(15px, 4vw, 19px); font-weight: 700; padding: 11px 22px;
+    border: none; border-radius: 16px; background: #80d8ff; color: #01579b;
+    cursor: pointer; box-shadow: 0 4px 0 #4fc3f7;
+  }
+  .tool-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #4fc3f7; }
+  .tool-btn.speak { background: #ffd54f; color: #6d4c41; box-shadow: 0 4px 0 #f9a825; }
+
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+  .star { position: fixed; top: -40px; font-size: 28px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .9; } }
+</style>
+</head>
+<body>
+  <a id="backHome" href="index.html" style="position:fixed;top:10px;left:10px;z-index:9999;display:inline-flex;align-items:center;gap:4px;text-decoration:none;font-family:inherit;font-size:15px;font-weight:800;color:#fff;background:rgba(94,53,177,.85);padding:8px 14px;border-radius:999px;box-shadow:0 3px 8px rgba(0,0,0,.22);-webkit-tap-highlight-color:transparent;">⬅️ 返回</a>
+  <h1>📐 郑直的图形排序 🔢</h1>
+  <div class="tip" id="tip">把下面的图形，按顺序一个一个点上去吧！</div>
+
+  <div class="row" id="modes">
+    <button class="pick-btn active" data-m="size">📏 比大小</button>
+    <button class="pick-btn" data-m="shape">🔺 数边边</button>
+  </div>
+  <div class="row" id="levels">
+    <button class="pick-btn active" data-l="3">🐣 简单</button>
+    <button class="pick-btn" data-l="4">🐰 普通</button>
+    <button class="pick-btn" data-l="5">🦁 挑战</button>
+  </div>
+
+  <div class="target" id="target"></div>
+  <div class="arrow" id="arrow">⬆️ 按顺序放进上面的格子</div>
+  <div class="pool" id="pool"></div>
+
+  <div class="score" id="score">🌟 闯关 0 次</div>
+
+  <div class="tools">
+    <button class="tool-btn speak" id="speakBtn">🔊 读一遍</button>
+    <button class="tool-btn" id="newBtn">🔄 换一题</button>
+  </div>
+
+  <div id="confetti"></div>
+
+<script>
+/* =======================================================================
+   图形排序 —— 逻辑排序 + 观察归纳（思维锻炼）
+   两种玩法：
+     · 比大小：同一种图形，不同尺寸，按从小到大 / 从大到小排序；
+     · 数边边：不同形状，按边的数量（圆→三角→正方→五边→六边）归纳排序。
+   孩子需要先观察、比较、归纳，再按正确顺序依次点击，锻炼排序与逻辑能力。
+   ======================================================================= */
+
+const CHILD_NAME = "郑直";
+
+// 形状库：sides 用于"数边边"排序键（圆当作 1，方便从少到多）
+const SHAPES = [
+  { key: "circle",   sides: 1, name: "圆形" },
+  { key: "triangle", sides: 3, name: "三角形" },
+  { key: "square",   sides: 4, name: "正方形" },
+  { key: "pentagon", sides: 5, name: "五边形" },
+  { key: "hexagon",  sides: 6, name: "六边形" },
+];
+const COLORS = ["#ef5350","#ffa726","#ffca28","#66bb6a","#26c6da","#5c6bc0","#ab47bc","#ec407a"];
+
+let mode = "size";   // size | shape
+let count = 3;       // 图形数量
+let asc = true;      // true=从小到大 / 从少到多
+let order = [];      // 正确顺序的对象数组
+let nextIndex = 0;   // 下一个该点的位置
+let locked = false;
+let rounds = 0;
+
+// ---------- 音效 ----------
+let actx = null;
+function beep(freq, dur = 0.12, type = "sine", vol = 0.15) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(vol, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+function playStep(i) { beep(440 + i * 80, 0.1, "triangle", 0.18); }
+function playWin() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.18, "triangle", 0.2), i * 150)); }
+
+// ---------- 语音 ----------
+let chosenVoice = null;
+function loadVoices() {
+  const zh = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith("zh"));
+  let p = zh.findIndex(v => v.localService && /tingting|婷婷|meijia|美佳|female|女/i.test(v.name));
+  if (p < 0) p = zh.findIndex(v => v.localService);
+  if (p < 0) p = 0;
+  chosenVoice = zh[p] || null;
+}
+if ("speechSynthesis" in window) { speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "zh-CN"; if (chosenVoice) u.voice = chosenVoice;
+    u.rate = 0.9; u.pitch = 1.05; speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+// ---------- 生成 SVG 图形 ----------
+// viewBox 固定 100×100，半径 44，居中；尺寸由外层 svg 宽高决定
+function polygonPoints(n, rotDeg) {
+  const cx = 50, cy = 50, r = 44, rot = (rotDeg || 0) * Math.PI / 180;
+  let pts = [];
+  for (let i = 0; i < n; i++) {
+    const a = rot + i * 2 * Math.PI / n - Math.PI / 2;
+    pts.push((cx + r * Math.cos(a)).toFixed(1) + "," + (cy + r * Math.sin(a)).toFixed(1));
+  }
+  return pts.join(" ");
+}
+function shapeSVG(type, sizePx, color) {
+  let inner;
+  if (type === "circle") {
+    inner = `<circle cx="50" cy="50" r="44" fill="${color}"/>`;
+  } else if (type === "triangle") {
+    inner = `<polygon points="${polygonPoints(3, 0)}" fill="${color}"/>`;
+  } else if (type === "square") {
+    inner = `<rect x="8" y="8" width="84" height="84" rx="8" fill="${color}"/>`;
+  } else {
+    const n = type === "pentagon" ? 5 : 6;
+    inner = `<polygon points="${polygonPoints(n, 0)}" fill="${color}"/>`;
+  }
+  return `<svg width="${sizePx}" height="${sizePx}" viewBox="0 0 100 100">${inner}</svg>`;
+}
+
+// ---------- 出新题 ----------
+function newQuestion() {
+  locked = false;
+  nextIndex = 0;
+  asc = Math.random() < 0.5;   // 随机决定升/降序
+
+  let items = [];   // {id, svg, sortKey}
+  if (mode === "size") {
+    // 同一形状，不同尺寸
+    const shape = pick(SHAPES);
+    const color = pick(COLORS);
+    // 生成 count 个明显不同的尺寸
+    const minS = 40, maxS = 96;
+    const step = (maxS - minS) / (count - 1);
+    for (let i = 0; i < count; i++) {
+      const size = Math.round(minS + step * i);
+      items.push({ id: "s" + i, sortKey: size, svg: shapeSVG(shape.key, size, color), label: shape.name });
+    }
+  } else {
+    // 不同形状，统一尺寸，按边数排序
+    const chosen = shuffle([...SHAPES]).slice(0, count);
+    const fixed = 76;
+    chosen.forEach((sh, i) => {
+      const color = COLORS[i % COLORS.length];
+      items.push({ id: "h" + i, sortKey: sh.sides, svg: shapeSVG(sh.key, fixed, color), label: sh.name });
+    });
+  }
+
+  // 正确顺序
+  order = [...items].sort((a, b) => asc ? a.sortKey - b.sortKey : b.sortKey - a.sortKey);
+
+  renderTarget();
+  renderPool(shuffle([...items]));
+  updateArrow();
+
+  const word = mode === "size"
+    ? (asc ? "从最小的开始，按从小到大点" : "从最大的开始，按从大到小点")
+    : (asc ? "按边最少到边最多，一个一个点" : "按边最多到边最少，一个一个点");
+  setTip("看一看、比一比，" + word + "！");
+  speak("看一看，比一比，" + word + "吧");
+}
+
+function updateArrow() {
+  const a = document.getElementById("arrow");
+  if (mode === "size") a.textContent = asc ? "⬆️ 从小到大 放进格子" : "⬆️ 从大到小 放进格子";
+  else a.textContent = asc ? "⬆️ 边从少到多 放进格子" : "⬆️ 边从多到少 放进格子";
+}
+
+function renderTarget() {
+  const el = document.getElementById("target");
+  el.innerHTML = "";
+  for (let i = 0; i < count; i++) {
+    const c = document.createElement("div");
+    c.className = "cell";
+    c.id = "cell" + i;
+    c.innerHTML = `<span class="idx">${i + 1}</span>`;
+    el.appendChild(c);
+  }
+}
+
+function renderPool(items) {
+  const el = document.getElementById("pool");
+  el.innerHTML = "";
+  items.forEach(it => {
+    const b = document.createElement("button");
+    b.className = "shape";
+    b.id = "btn-" + it.id;
+    b.innerHTML = it.svg;
+    b.onclick = () => choose(it, b);
+    el.appendChild(b);
+  });
+}
+
+// ---------- 判题 ----------
+function choose(it, btn) {
+  if (locked) return;
+  const want = order[nextIndex];
+  if (it.id === want.id) {
+    // 正确：放进对应格子
+    btn.classList.add("gone");
+    setTimeout(() => { btn.style.display = "none"; }, 400);
+    const cell = document.getElementById("cell" + nextIndex);
+    cell.classList.add("filled");
+    cell.innerHTML = it.svg;
+    // 把格子里的图形缩放到合适大小
+    const svg = cell.querySelector("svg");
+    if (svg) { svg.setAttribute("width", "64"); svg.setAttribute("height", "64"); }
+    playStep(nextIndex);
+    nextIndex++;
+    if (nextIndex === count) {
+      locked = true;
+      rounds++;
+      document.getElementById("score").textContent = `🌟 闯关 ${rounds} 次`;
+      setTip("全部排好啦！排得真整齐 🎉", "#d7f5d2");
+      playWin(); confetti();
+      speak(CHILD_NAME + "排好啦，太棒了！");
+      setTimeout(newQuestion, 2100);
+    } else {
+      setTip("对！接着找下一个 👍");
+    }
+  } else {
+    // 错误：抖一抖
+    btn.classList.add("wrong");
+    beep(200, 0.14, "square");
+    setTimeout(() => btn.classList.remove("wrong"), 360);
+    const hint = mode === "size"
+      ? (asc ? "要先找最小的那个哦" : "要先找最大的那个哦")
+      : (asc ? "数数看，先找边最少的" : "数数看，先找边最多的");
+    setTip("再比一比，" + hint + " 🤔");
+    speak(hint);
+  }
+}
+
+// ---------- 撒花 ----------
+function confetti() {
+  const box = document.getElementById("confetti");
+  const emojis = ["🌟","🎉","⭐","📐","🔺","🟦","🟢","🎈","💖","✨"];
+  for (let i = 0; i < 34; i++) {
+    const s = document.createElement("div");
+    s.className = "star";
+    s.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = (1.6 + Math.random() * 1.8) + "s";
+    box.appendChild(s);
+    setTimeout(() => s.remove(), 3500);
+  }
+}
+
+function setTip(t, bg) {
+  const el = document.getElementById("tip");
+  el.textContent = t;
+  el.style.background = bg || "#fff";
+}
+
+// ---------- 事件 ----------
+document.getElementById("modes").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#modes .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  mode = btn.dataset.m; beep(600, 0.1); newQuestion();
+});
+document.getElementById("levels").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#levels .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  count = parseInt(btn.dataset.l, 10); beep(520, 0.1); newQuestion();
+});
+document.getElementById("speakBtn").onclick = () => {
+  const word = mode === "size"
+    ? (asc ? "从最小的开始，按从小到大点" : "从最大的开始，按从大到小点")
+    : (asc ? "按边最少到边最多，一个一个点" : "按边最多到边最少，一个一个点");
+  speak("看一看，比一比，" + word + "吧");
+};
+document.getElementById("newBtn").onclick = () => { beep(520, 0.1); newQuestion(); };
+
+// 启动
+newQuestion();
+</script>
+</body>
+</html>
