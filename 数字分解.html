@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>➗ 数字分解 · 小汽车分车库</title>
+<style>
+  :root { --shadow: rgba(0,0,0,.14); }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Comic Sans MS", system-ui, sans-serif;
+    background: linear-gradient(180deg, #8fd3ff 0%, #cdecff 45%, #aed581 78%, #9ccc65 100%);
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 12px 12px 24px; color: #1565c0; user-select: none;
+  }
+  h1 { font-size: clamp(20px, 5.2vw, 42px); margin: 2px 0; text-shadow: 2px 2px 0 #fff; text-align: center; }
+  .tip {
+    font-size: clamp(15px, 3.6vw, 24px); margin: 8px 0; background: #fff;
+    padding: 8px 16px; border-radius: 999px; box-shadow: 0 3px 10px var(--shadow);
+    min-height: 1.4em; text-align: center; color: #455a64; max-width: 92vw;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 6px; }
+  .pick-btn {
+    font-size: clamp(13px, 3.6vw, 18px); font-weight: 700; padding: 8px 14px;
+    border: none; border-radius: 16px; background: #fff; color: #1976d2;
+    cursor: pointer; box-shadow: 0 4px 0 #bbdefb; transition: transform .08s, background .2s;
+  }
+  .pick-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #bbdefb; }
+  .pick-btn.active { background: #42a5f5; box-shadow: 0 4px 0 #1976d2; color: #fff; }
+
+  /* 整体—部分（number bond）结构 */
+  .bond { display: flex; flex-direction: column; align-items: center; gap: 0; margin: 4px 0; }
+  .pad { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .pad .label { font-size: clamp(11px, 3vw, 18px); font-weight: 800; color: #5d4037; }
+  .pad .count { font-size: clamp(18px, 5.4vw, 38px); font-weight: 900; line-height: 1; }
+  .whole .count { color: #e65100; }
+  .frame {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: clamp(3px, 1vw, 7px);
+    background: #fff; padding: clamp(4px, 1.4vw, 9px); border-radius: 14px;
+    box-shadow: 0 6px 16px var(--shadow); width: clamp(128px, 38vw, 280px);
+  }
+  .whole .frame { border: 4px solid #ffb74d; }
+  .slot {
+    aspect-ratio: 1 / 1; border-radius: 9px; background: #eceff1;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(15px, 4.6vw, 34px); line-height: 1;
+  }
+  .slot.left  { background: #ffe6e0; }
+  .slot.right { background: #dcebff; }
+  .slot .car { animation: drivein .5s; }
+  @keyframes drivein { from { transform: translateY(-34px) scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  /* 分叉线 */
+  .fork { width: clamp(180px, 72vw, 600px); height: clamp(26px, 5vw, 40px); display: block; }
+  .fork line { stroke: #78909c; stroke-width: 3; vector-effect: non-scaling-stroke; }
+
+  .parts { display: flex; gap: clamp(14px, 6vw, 48px); justify-content: center; }
+  .left-pad .label  { color: #d84315; }
+  .right-pad .label { color: #1565c0; }
+
+  /* 算式 */
+  .eq {
+    font-size: clamp(22px, 7vw, 46px); font-weight: 900; color: #0d47a1; margin: 12px 0 2px;
+    background: #fff; border-radius: 18px; padding: 8px 28px; box-shadow: 0 4px 12px var(--shadow);
+  }
+  .eq .l { color: #d84315; } .eq .r { color: #1565c0; }
+
+  /* 分法总览 */
+  .wall { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin: 8px 0 0; max-width: 94vw; }
+  .wall .chip {
+    background: #ffffffcc; border-radius: 12px; padding: 4px 10px; font-weight: 800;
+    font-size: clamp(13px, 3.6vw, 21px); color: #607d8b; box-shadow: 0 2px 6px var(--shadow);
+    cursor: pointer; transition: transform .15s, background .15s;
+  }
+  .wall .chip.cur { background: #66bb6a; color: #fff; transform: scale(1.12); }
+
+  .tools { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
+  .tool-btn {
+    font-size: clamp(15px, 4vw, 19px); font-weight: 700; padding: 11px 18px;
+    border: none; border-radius: 16px; background: #80d8ff; color: #01579b;
+    cursor: pointer; box-shadow: 0 4px 0 #4fc3f7;
+  }
+  .tool-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #4fc3f7; }
+  .tool-btn.play { background: #aed581; color: #33691e; box-shadow: 0 4px 0 #7cb342; }
+  .tool-btn.speak { background: #ffd54f; color: #6d4c41; box-shadow: 0 4px 0 #f9a825; }
+
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+  .star { position: fixed; top: -40px; font-size: 28px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .9; } }
+</style>
+</head>
+<body>
+  <a id="backHome" href="index.html" style="position:fixed;top:10px;left:10px;z-index:9999;display:inline-flex;align-items:center;gap:4px;text-decoration:none;font-family:inherit;font-size:15px;font-weight:800;color:#fff;background:rgba(94,53,177,.85);padding:8px 14px;border-radius:999px;box-shadow:0 3px 8px rgba(0,0,0,.22);-webkit-tap-highlight-color:transparent;">⬅️ 返回</a>
+  <h1>➗ 郑直的数字分解 🚗</h1>
+  <div class="tip" id="tip">看一辆辆小汽车从大停车场，开进两个小停车场！</div>
+
+  <div class="row" id="levels">
+    <button class="pick-btn active" data-l="small">🐣 5 以内</button>
+    <button class="pick-btn" data-l="big">🦁 10 以内</button>
+  </div>
+
+  <div class="bond">
+    <div class="pad whole">
+      <div class="label">🅿️ 大停车场（一共）</div>
+      <div class="frame" id="frameWhole"></div>
+      <div class="count" id="countWhole">0</div>
+    </div>
+    <svg class="fork" viewBox="0 0 100 26" preserveAspectRatio="none">
+      <line x1="50" y1="1" x2="22" y2="25"></line>
+      <line x1="50" y1="1" x2="78" y2="25"></line>
+    </svg>
+    <div class="parts">
+      <div class="pad left-pad">
+        <div class="label">🚗 左边</div>
+        <div class="frame" id="frameLeft"></div>
+        <div class="count" id="countLeft" style="color:#d84315">0</div>
+      </div>
+      <div class="pad right-pad">
+        <div class="label">🚙 右边</div>
+        <div class="frame" id="frameRight"></div>
+        <div class="count" id="countRight" style="color:#1565c0">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="eq" id="eq"></div>
+  <div class="wall" id="wall"></div>
+
+  <div class="tools">
+    <button class="tool-btn" id="prevBtn">◀ 上一种</button>
+    <button class="tool-btn play" id="playBtn">▶️ 自动演示</button>
+    <button class="tool-btn" id="nextBtn">下一种 ▶</button>
+  </div>
+  <div class="tools">
+    <button class="tool-btn speak" id="speakBtn">🔊 读一遍</button>
+    <button class="tool-btn" id="newBtn">🔄 换个数</button>
+  </div>
+
+  <div id="confetti"></div>
+
+<script>
+/* =======================================================================
+   数字分解 —— 整体-部分模型 / 数的"分与合"演示（数学启蒙，无需作答）
+   小汽车主题，number bond 造型：
+     · 上方一个"大停车场"十格阵装着整体 N（红车去左、蓝车去右，颜色预告分组）；
+     · 分叉到下方左右两个十格阵：左 a 辆红车、右 b 辆蓝车。
+   自动演示"分了再合、合了再分"：N 分成 a 和 b → a 和 b 合起来还是 N，
+   循环展示一个数的全部分法，配守恒旁白，让孩子观察、归纳。
+   ======================================================================= */
+
+const CAR_L = "🚗";   // 左边的车（红）
+const CAR_R = "🚙";   // 右边的车（蓝）
+
+// 难度决定数字范围与十格阵格子数：5 以内（五格）/ 10 以内（十格）
+const RANGES = {
+  small: { lo: 2, hi: 5,  cap: 5  },
+  big:   { lo: 2, hi: 10, cap: 10 },
+};
+
+let level = "small";
+let N = 5;        // 当前要分解的数
+let a = 1;        // 左边车数（分法序号，1 .. N-1），b = N - a
+let playing = false;
+let playA = 1;        // 自动演示当前分法
+let playState = "split";
+let timer = null;
+
+// ---------- 音效 ----------
+let actx = null;
+function beep(freq, dur = 0.12, type = "sine", vol = 0.15) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(vol, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+function playWin() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.18, "triangle", 0.2), i * 150)); }
+
+// ---------- 语音 ----------
+let chosenVoice = null;
+function loadVoices() {
+  const zh = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith("zh"));
+  let p = zh.findIndex(v => v.localService && /tingting|婷婷|meijia|美佳|female|女/i.test(v.name));
+  if (p < 0) p = zh.findIndex(v => v.localService);
+  if (p < 0) p = 0;
+  chosenVoice = zh[p] || null;
+}
+if ("speechSynthesis" in window) { speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "zh-CN"; if (chosenVoice) u.voice = chosenVoice;
+    u.rate = 0.92; u.pitch = 1.05; speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+// ---------- 渲染十格阵 ----------
+// cars: 要摆放的车 emoji 数组；cls: 给已停格子加的底色类(left/right/"")
+function renderFrame(el, cars, cap, cls, animate) {
+  el.innerHTML = "";
+  for (let i = 0; i < cap; i++) {
+    const s = document.createElement("div");
+    s.className = "slot" + (i < cars.length && cls ? " " + cls : "");
+    if (i < cars.length) {
+      const c = document.createElement("span");
+      c.className = "car";
+      c.textContent = cars[i];
+      if (!animate) c.style.animation = "none";
+      s.appendChild(c);
+    }
+    el.appendChild(s);
+  }
+}
+
+// 整体框：前 a 辆红车 + 后 b 辆蓝车（始终显示，强调"分了总数没变"）
+function renderWhole() {
+  const cap = RANGES[level].cap;
+  const b = N - a;
+  const cars = Array(a).fill(CAR_L).concat(Array(b).fill(CAR_R));
+  renderFrame(document.getElementById("frameWhole"), cars, cap, "", false);
+  document.getElementById("countWhole").textContent = N;
+}
+
+// 下方两个部分框：split=true 摆车，false 清空
+function renderParts(split, animate) {
+  const cap = RANGES[level].cap;
+  const b = N - a;
+  renderFrame(document.getElementById("frameLeft"),
+    split ? Array(a).fill(CAR_L) : [], cap, "left", animate);
+  renderFrame(document.getElementById("frameRight"),
+    split ? Array(b).fill(CAR_R) : [], cap, "right", animate);
+  document.getElementById("countLeft").textContent = split ? a : 0;
+  document.getElementById("countRight").textContent = split ? b : 0;
+}
+
+function updateEq() {
+  const b = N - a;
+  document.getElementById("eq").innerHTML =
+    `<span class="l">${a}</span> ＋ <span class="r">${b}</span> ＝ ${N}`;
+  [...document.querySelectorAll("#wall .chip")].forEach((c, i) =>
+    c.classList.toggle("cur", i === a - 1));
+}
+
+// 手动 / 初始：直接显示"已分好"的样子
+function render(animate = true) {
+  renderWhole();
+  renderParts(true, animate);
+  updateEq();
+  setTip(`${N} 分成 ${a} 和 ${N - a}，合起来还是 ${N}`);
+}
+
+// ---------- 选一个新的数 ----------
+function newNumber(setN) {
+  stopPlay();
+  N = setN;
+  a = 1;
+  // 分法总览
+  const wall = document.getElementById("wall");
+  wall.innerHTML = "";
+  for (let k = 1; k <= N - 1; k++) {
+    const d = document.createElement("div");
+    d.className = "chip";
+    d.textContent = `${k} 和 ${N - k}`;
+    d.onclick = () => { stopPlay(); a = k; beep(560, 0.08); render(); speakSplit(); };
+    wall.appendChild(d);
+  }
+  render();
+  speakSplit();
+}
+
+function speakSplit() { speak(`${N} 分成 ${a} 和 ${N - a}`); }
+function speakMerge() { speak(`${a} 和 ${N - a} 合起来还是 ${N}`); }
+
+// ---------- 上一种 / 下一种 ----------
+function step(dir) {
+  a += dir;
+  if (a > N - 1) a = 1;
+  if (a < 1) a = N - 1;
+  beep(560, 0.08);
+  render();
+  speakSplit();
+}
+
+// ---------- 自动演示：分了再合、合了再分 ----------
+function startPlay() {
+  playing = true;
+  document.getElementById("playBtn").textContent = "⏸ 暂停";
+  playA = 1; playState = "split";
+  advance();
+}
+function advance() {
+  if (!playing) return;
+  if (playState === "split") {
+    // 分：车从大停车场开到两个小停车场
+    a = playA;
+    renderWhole();
+    renderParts(true, true);
+    updateEq();
+    setTip(`${N} 分成 ${a} 和 ${N - a} 🚗`);
+    speakSplit();
+    beep(620, 0.08);
+    playState = "merge";
+    timer = setTimeout(advance, 2200);
+  } else {
+    // 合：车从两个小停车场开回大停车场
+    renderParts(false, false);
+    setTip(`${a} 和 ${N - a} 合起来还是 ${N} ✨`, "#e8f5e9");
+    speakMerge();
+    beep(500, 0.08);
+    playState = "split";
+    playA++;
+    if (playA > N - 1) {
+      // 一轮全部分法演完
+      timer = setTimeout(() => {
+        stopPlay();
+        render(false);
+        setTip(`${N} 的分法都看完啦！🎉`, "#fff3c4");
+        speak(`${N} 的分法都看完啦`);
+        playWin(); confetti();
+      }, 1800);
+      return;
+    }
+    timer = setTimeout(advance, 1700);
+  }
+}
+function stopPlay() {
+  playing = false;
+  if (timer) { clearTimeout(timer); timer = null; }
+  document.getElementById("playBtn").textContent = "▶️ 自动演示";
+}
+
+// ---------- 撒花 ----------
+function confetti() {
+  const box = document.getElementById("confetti");
+  const emojis = ["🌟","🎉","⭐","🚗","🚙","🏁","🎈","✨"];
+  for (let i = 0; i < 34; i++) {
+    const s = document.createElement("div");
+    s.className = "star";
+    s.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = (1.6 + Math.random() * 1.8) + "s";
+    box.appendChild(s);
+    setTimeout(() => s.remove(), 3500);
+  }
+}
+
+function setTip(t, bg) {
+  const el = document.getElementById("tip");
+  el.textContent = t; el.style.background = bg || "#fff";
+}
+
+// ---------- 事件 ----------
+document.getElementById("levels").addEventListener("click", e => {
+  const btn = e.target.closest(".pick-btn"); if (!btn) return;
+  document.querySelectorAll("#levels .pick-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  level = btn.dataset.l; beep(520, 0.1);
+  newNumber(RANGES[level].hi);   // 切难度从该档最大的数开始
+});
+document.getElementById("prevBtn").onclick = () => { stopPlay(); step(-1); };
+document.getElementById("nextBtn").onclick = () => { stopPlay(); step(1); };
+document.getElementById("playBtn").onclick = () => { playing ? stopPlay() : startPlay(); };
+document.getElementById("speakBtn").onclick = () => speak(`${N} 分成 ${a} 和 ${N - a}，合起来还是 ${N}`);
+document.getElementById("newBtn").onclick = () => {
+  beep(520, 0.1);
+  const { lo, hi } = RANGES[level];
+  let nn;
+  do { nn = lo + Math.floor(Math.random() * (hi - lo + 1)); } while (nn === N && hi > lo);
+  newNumber(nn);
+};
+
+// 启动
+newNumber(RANGES[level].hi);
+</script>
+</body>
+</html>

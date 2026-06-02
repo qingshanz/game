@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>👀 眼力追踪 · 紧盯小球</title>
+<title>🚗 眼力追踪 · 紧盯小汽车</title>
 <style>
   :root { --shadow: rgba(0,0,0,.16); }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; }
   body {
     font-family: "PingFang SC", "Microsoft YaHei", "Comic Sans MS", system-ui, sans-serif;
-    background: linear-gradient(160deg, #c8f7e8, #d6ecff 60%, #ffe9c7);
+    background: linear-gradient(180deg, #8fd3ff 0%, #c3e9ff 42%, #aed581 75%, #9ccc65 100%);
     display: flex; flex-direction: column; align-items: center;
-    min-height: 100vh; padding: 12px 12px 24px; color: #00695c; user-select: none;
+    min-height: 100vh; padding: 12px 12px 24px; color: #2e5d36; user-select: none;
   }
   h1 { font-size: clamp(22px, 5.6vw, 38px); margin: 2px 0; text-shadow: 2px 2px 0 #fff; text-align: center; }
   .tip {
@@ -33,7 +33,11 @@
   .stage {
     position: relative; margin: 14px 0 6px; max-width: 96vw;
     height: clamp(96px, 30vw, 130px);
-    background: #fff; border-radius: 22px; box-shadow: 0 6px 18px var(--shadow);
+    /* 柏油马路 + 中间一条黄色虚线 */
+    background:
+      repeating-linear-gradient(90deg, transparent 0 24px, #ffe082 24px 44px) center/100% 6px no-repeat,
+      linear-gradient(180deg, #62727b, #4e5d66);
+    border-radius: 22px; box-shadow: 0 6px 18px var(--shadow);
     padding: 0; overflow: hidden;
   }
   .box {
@@ -42,22 +46,26 @@
     transition: left .45s cubic-bezier(.45,.05,.3,1);
     display: flex; align-items: center; justify-content: center;
   }
+  /* 车库卷帘门 */
   .lid {
-    position: absolute; inset: 0; border-radius: 16px;
-    background: linear-gradient(160deg, #4dd0e1, #0097a7);
-    box-shadow: inset 0 -6px 10px rgba(0,0,0,.18), 0 4px 8px rgba(0,0,0,.15);
+    position: absolute; inset: 0; border-radius: 12px 12px 8px 8px;
+    background:
+      repeating-linear-gradient(180deg, #b0bec5 0 6px, #90a4ae 6px 12px);
+    border: 2px solid #78909c;
+    box-shadow: inset 0 -6px 10px rgba(0,0,0,.18), 0 4px 8px rgba(0,0,0,.18);
     display: flex; align-items: center; justify-content: center;
-    font-size: clamp(22px, 7vw, 34px);
+    font-size: clamp(20px, 6.5vw, 30px);
     transition: transform .35s, opacity .35s; cursor: pointer;
   }
-  .lid::after { content: "🎁"; opacity: .9; }
-  .box.open .lid { transform: translateY(-130%) rotate(-12deg); opacity: 0; pointer-events: none; }
+  .lid::after { content: "🅿️"; opacity: .95; }
+  .box.open .lid { transform: translateY(-118%); opacity: 0; pointer-events: none; }
+  /* 要追踪的小汽车 */
   .ball {
-    width: 66%; height: 66%; border-radius: 50%;
-    background: radial-gradient(circle at 32% 30%, #fff6, #ff7043 55%, #e64a19);
-    box-shadow: 0 4px 8px rgba(0,0,0,.25);
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(32px, 11vw, 50px); line-height: 1;
   }
-  .pit { width: 60%; height: 16%; border-radius: 50%; background: #00000010; }
+  .pit { width: 64%; height: 18%; border-radius: 50%; background: #ffffff22; }
   .box.pickable .lid:active { transform: scale(.94); }
   .box.moving { z-index: 5; }
   .box.moving .lid {
@@ -86,8 +94,8 @@
 </head>
 <body>
   <a id="backHome" href="index.html" style="position:fixed;top:10px;left:10px;z-index:9999;display:inline-flex;align-items:center;gap:4px;text-decoration:none;font-family:inherit;font-size:15px;font-weight:800;color:#fff;background:rgba(94,53,177,.85);padding:8px 14px;border-radius:999px;box-shadow:0 3px 8px rgba(0,0,0,.22);-webkit-tap-highlight-color:transparent;">⬅️ 返回</a>
-  <h1>👀 郑直的眼力追踪 ⚽</h1>
-  <div class="tip" id="tip">先记住小球在哪个盒子里！</div>
+  <h1>🚗 郑直的眼力追踪 🅿️</h1>
+  <div class="tip" id="tip">先记住小汽车停在哪个车库里！</div>
 
   <div class="row" id="levels">
     <button class="pick-btn active" data-l="easy">🐣 简单</button>
@@ -109,8 +117,8 @@
 <script>
 /* =======================================================================
    眼力追踪 —— 动态专注力 / 视觉追踪
-   经典"猜球"玩法：先亮出小球藏在哪个盒子，盖上后盒子两两交换移动，
-   孩子要用眼睛紧紧盯住小球所在的盒子，交换结束后指出它的位置。
+   经典"猜一猜"玩法：先亮出小汽车停在哪个车库，盖上后车库两两交换位置，
+   孩子要用眼睛紧紧盯住小汽车所在的车库，交换结束后指出它的位置。
    锻炼 5 岁儿童的动态注意力、视觉追踪与短时空间记忆。
    ======================================================================= */
 
@@ -183,7 +191,7 @@ async function newRound() {
   const cfg = LEVELS[level];
   computeSize(cfg.n);
   phase = "idle";
-  setTip("先记住小球在哪个盒子里！");
+  setTip("先记住小汽车停在哪个车库里！");
   document.getElementById("speakBtn").disabled = true;
   document.getElementById("newBtn").disabled = true;
 
@@ -203,6 +211,7 @@ async function newRound() {
 
     const ballEl = document.createElement("div");
     ballEl.className = i === ballAt ? "ball" : "pit";
+    if (i === ballAt) ballEl.textContent = "🚗";
     const lid = document.createElement("div");
     lid.className = "lid";
 
@@ -218,7 +227,7 @@ async function newRound() {
   // 1) 亮出小球（给足时间记住）
   boxes.forEach(b => { if (b.ball) b.el.classList.add("open"); });
   beep(700, 0.12, "triangle");
-  speak("看，小球在这里，盯住它！");
+  speak("看，小汽车在这里，盯住它！");
   await sleep(2400);
 
   // 2) 盖上
@@ -228,7 +237,7 @@ async function newRound() {
 
   // 3) 交换
   phase = "swapping";
-  setTip("盯住小球，盒子要交换啦！👀");
+  setTip("盯住小汽车，车库要交换位置啦！👀");
   for (let k = 0; k < cfg.swaps; k++) {
     let a = Math.floor(Math.random() * cfg.n);
     let b = Math.floor(Math.random() * cfg.n);
@@ -248,8 +257,8 @@ async function newRound() {
   // 4) 让孩子指认
   phase = "guess";
   boxes.forEach(b => b.el.classList.add("pickable"));
-  setTip("小球藏在哪个盒子里？点一点它！🤔");
-  speak("小球在哪里呀？点一点");
+  setTip("小汽车停在哪个车库里？点一点它！🤔");
+  speak("小汽车在哪里呀？点一点");
   document.getElementById("speakBtn").disabled = false;
   document.getElementById("newBtn").disabled = false;
 }
@@ -274,8 +283,8 @@ function guess(obj) {
     beep(200, 0.16, "square");
     const right = boxes.find(b => b.ball);
     if (right) right.el.classList.add("win");
-    setTip("小球在亮起来的那个盒子里，下次盯紧点 💪");
-    speak("小球在这个盒子里哦，再试一次吧");
+    setTip("小汽车在亮起来的那个车库里，下次盯紧点 💪");
+    speak("小汽车在这个车库里哦，再试一次吧");
   }
   setTimeout(newRound, 2400);
 }
@@ -283,7 +292,7 @@ function guess(obj) {
 // ---------- 撒花 ----------
 function confetti() {
   const box = document.getElementById("confetti");
-  const emojis = ["🌟","🎉","⭐","⚽","👀","🎈","💖","✨"];
+  const emojis = ["🌟","🎉","⭐","🚗","🚙","🏁","🎈","✨"];
   for (let i = 0; i < 34; i++) {
     const s = document.createElement("div");
     s.className = "star";
@@ -303,7 +312,7 @@ document.getElementById("levels").addEventListener("click", e => {
   btn.classList.add("active");
   level = btn.dataset.l; beep(520, 0.1); newRound();
 });
-document.getElementById("speakBtn").onclick = () => speak("小球在哪里呀？点一点");
+document.getElementById("speakBtn").onclick = () => speak("小汽车在哪里呀？点一点");
 document.getElementById("newBtn").onclick = () => { beep(520, 0.1); newRound(); };
 window.addEventListener("resize", () => { if (phase === "guess" || phase === "done") return; });
 
