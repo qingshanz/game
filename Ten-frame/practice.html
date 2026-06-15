@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>十格阵 · 练习卡（无数字）· 数小汽车填答案</title>
+
+<link href="https://g.alicdn.com/code/lib/daisyui/5.1.25/daisyui.css" rel="stylesheet" type="text/css"/>
+<link href="https://g.alicdn.com/code/lib/daisyui/5.1.25/themes.css" rel="stylesheet" type="text/css"/>
+<script src="https://g.alicdn.com/code/lib/react/17.0.2/umd/react.development.js"></script>
+<script src="https://g.alicdn.com/code/lib/react-dom/17.0.2/umd/react-dom.development.js"></script>
+<script src="https://g.alicdn.com/code/lib/react-router-dom/5.3.4/react-router-dom.js"></script>
+<script src="https://g.alicdn.com/code/lib/tailwindcss-browser/4.1.13/index.global.js"></script>
+<script src="https://g.alicdn.com/code/lib/babel-standalone/7.25.0/babel.min.js"></script>
+
+<style type="text/tailwindcss">
+  @theme {
+    --color-paper: #fffdf7;
+    --color-ink: #1a1a2e;
+    --font-display: "Baloo 2", "Fredoka", "Comic Sans MS", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --font-body: "Quicksand", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  html, body {
+    background: #efe9dc;
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    margin: 0;
+  }
+  .num-font {
+    font-family: var(--font-display);
+    font-weight: 900;
+    letter-spacing: -0.04em;
+  }
+
+  .a4-card {
+    width: 297mm;
+    height: 210mm;
+    background: #fffdf7;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.25);
+    margin: 24px auto;
+    position: relative;
+    overflow: hidden;
+    page-break-after: always;
+    break-after: page;
+  }
+  .a4-card:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  .ten-frame {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    border: 4px solid #1a1a2e;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #ffffff;
+  }
+  .ten-cell {
+    border-right: 3px solid #1a1a2e;
+    border-bottom: 3px solid #1a1a2e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: #ffffff;
+  }
+  .ten-cell.row-top {
+    border-bottom-width: 4px;
+  }
+  .ten-cell.col-last {
+    border-right: 0;
+  }
+  .ten-cell.row-bottom {
+    border-bottom: 0;
+  }
+
+  /* 答题框 —— 三条可写的空格 */
+  .answer-box {
+    width: 36mm;
+    height: 22mm;
+    border: 3px dashed #1a1a2e;
+    border-radius: 10px;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent 0 6mm,
+      rgba(26,26,46,0.18) 6mm calc(6mm + 0.5mm)
+    );
+  }
+
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+  @media print {
+    html, body {
+      background: #ffffff !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .no-print { display: none !important; }
+    .a4-card {
+      box-shadow: none !important;
+      margin: 0 !important;
+      width: 297mm !important;
+      height: 210mm !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+  // 十种小汽车 + 数量已被打乱（A→J 不再是 1→10）
+  // letter 是卡片编号，n 是真实数量（用于答案区，不展示给小朋友）
+  const PRACTICE = [
+    { letter: "A", n: 7,  bg: "#5F6FFF", soft: "#DFE3FF", car: "🚓", name: "警车" },
+    { letter: "B", n: 3,  bg: "#F4B400", soft: "#FFF1C2", car: "🚙", name: "越野车" },
+    { letter: "C", n: 10, bg: "#8D6E63", soft: "#EAE0DB", car: "🚜", name: "拖拉机" },
+    { letter: "D", n: 5,  bg: "#3DB8FF", soft: "#DCEFFF", car: "🚑", name: "救护车" },
+    { letter: "E", n: 1,  bg: "#FF6B6B", soft: "#FFE9E9", car: "🚗", name: "小轿车" },
+    { letter: "F", n: 8,  bg: "#9C27B0", soft: "#EFD9F5", car: "🏎️", name: "赛车" },
+    { letter: "G", n: 4,  bg: "#1DD1A1", soft: "#D6F7EB", car: "🚌", name: "公交车" },
+    { letter: "H", n: 6,  bg: "#EF5350", soft: "#FFDDDD", car: "🚒", name: "消防车" },
+    { letter: "I", n: 9,  bg: "#00897B", soft: "#CFEDE8", car: "🚚", name: "大卡车" },
+    { letter: "J", n: 2,  bg: "#FF9F43", soft: "#FFEFDA", car: "🚕", name: "出租车" },
+  ];
+
+  function cellClass(idx) {
+    const row = Math.floor(idx / 5);
+    const col = idx % 5;
+    const classes = ["ten-cell"];
+    if (col === 4) classes.push("col-last");
+    if (row === 0) classes.push("row-top");
+    if (row === 1) classes.push("row-bottom");
+    return classes.join(" ");
+  }
+
+  function TenFrame({ count, car, soft }) {
+    const cells = Array.from({ length: 10 }, (_, i) => i);
+    return (
+      <div
+        className="ten-frame"
+        style={{ width: "210mm", height: "84mm" }}
+      >
+        {cells.map((i) => {
+          const filled = i < count;
+          return (
+            <div
+              key={i}
+              className={cellClass(i)}
+              style={{ background: filled ? soft : "#ffffff" }}
+            >
+              {filled && (
+                <span
+                  className="select-none leading-none"
+                  style={{ fontSize: "60px" }}
+                >
+                  {car}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function Card({ item, idx, total }) {
+    const { letter, n, bg, soft, car, name } = item;
+    return (
+      <section
+        className="a4-card"
+        style={{
+          background: `linear-gradient(180deg, ${bg} 0 18mm, #fffdf7 18mm 100%)`,
+        }}
+      >
+        {/* 顶部彩带：字母编号 + 车名 + 进度 */}
+        <header
+          className="absolute top-0 left-0 right-0 flex items-center justify-between px-10"
+          style={{ height: "18mm", color: "#fff" }}
+        >
+          <div className="flex items-center gap-3">
+            <span
+              className="num-font bg-white/20 rounded-full flex items-center justify-center"
+              style={{ width: "44px", height: "44px", fontSize: "22px" }}
+            >
+              {letter}
+            </span>
+            <div>
+              <p className="text-[11px] tracking-[0.4em] uppercase opacity-80 font-bold">
+                Ten Frame · Practice · 数一数填一填
+              </p>
+              <p className="text-lg font-bold tracking-wider">
+                数一数 · {name} 有几辆？
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-[11px] tracking-[0.3em] opacity-80 font-bold">CARD</p>
+            <p className="num-font text-2xl leading-none">
+              {letter} / J
+            </p>
+          </div>
+        </header>
+
+        {/* 主体：左侧"问号+答题框"，右侧十格阵 */}
+        <div
+          className="absolute left-0 right-0 flex items-center justify-between px-12"
+          style={{ top: "22mm", bottom: "16mm" }}
+        >
+          {/* 左：大问号 + 答题框 */}
+          <div className="flex flex-col items-center justify-center" style={{ width: "82mm" }}>
+            <span
+              className="num-font leading-none"
+              style={{
+                fontSize: "200px",
+                color: bg,
+                textShadow: `8px 8px 0 rgba(0,0,0,0.06)`,
+              }}
+            >
+              ?
+            </span>
+            <p className="mt-4 text-base font-bold text-[#1a1a2e]/80 tracking-wider">
+              请把答案写在下面 ↓
+            </p>
+            <div className="mt-3 flex items-end gap-3">
+              <span className="num-font text-2xl text-[#1a1a2e]">一共有</span>
+              <div className="answer-box" />
+              <span className="num-font text-2xl text-[#1a1a2e]">辆</span>
+            </div>
+          </div>
+
+          {/* 右：十格阵 */}
+          <div className="flex flex-col items-center">
+            <TenFrame count={n} car={car} soft={soft} />
+            <p className="mt-5 text-sm text-[#1a1a2e]/60 tracking-[0.2em] font-semibold">
+              提示：用小手指着，一个格子一个格子数 · 1, 2, 3 …
+            </p>
+          </div>
+        </div>
+
+        {/* 底部彩条 + 老师看的答案（极小、低饱和、便于折叠/裁掉） */}
+        <footer
+          className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-10"
+          style={{ height: "10mm", background: bg, color: "#fff" }}
+        >
+          <span className="text-[11px] tracking-[0.4em] font-bold uppercase opacity-90">
+            Practice · 配合上一套学习卡使用
+          </span>
+          <span className="text-[10px] opacity-60 tracking-[0.2em] font-bold">
+            答案 / answer · {n}
+          </span>
+        </footer>
+      </section>
+    );
+  }
+
+  function Toolbar() {
+    const handlePrint = () => window.print();
+    return (
+      <div className="no-print fixed top-4 right-4 z-50 flex items-center gap-2">
+        <a
+          href="#card-A"
+          className="px-4 py-3 rounded-full bg-white text-[#1a1a2e] font-bold text-sm shadow-lg border border-[#1a1a2e]/10"
+        >
+          回到第 A 张
+        </a>
+        <a
+          href="index.html"
+          className="px-4 py-3 rounded-full bg-[#3DB8FF] text-white font-bold text-sm shadow-lg hover:bg-[#1a1a2e] transition-colors flex items-center gap-2"
+        >
+          <span className="text-lg leading-none">←</span>
+          <span>学习卡</span>
+        </a>
+        <button
+          onClick={handlePrint}
+          className="px-5 py-3 rounded-full bg-[#1a1a2e] text-white font-bold text-sm shadow-lg hover:bg-[#FF6B6B] transition-colors flex items-center gap-2"
+        >
+          <span className="text-lg">🖨</span>
+          <span>打印 10 张练习卡</span>
+        </button>
+      </div>
+    );
+  }
+
+  function MiniNav() {
+    return (
+      <nav className="no-print fixed left-4 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-2 bg-white/90 backdrop-blur p-2 rounded-2xl shadow-lg border border-[#1a1a2e]/10">
+        {PRACTICE.map((c) => (
+          <a
+            key={c.letter}
+            href={`#card-${c.letter}`}
+            className="num-font w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm hover:scale-110 transition-transform"
+            style={{ background: c.bg }}
+            title={`第 ${c.letter} 张 · ${c.name}`}
+          >
+            {c.letter}
+          </a>
+        ))}
+      </nav>
+    );
+  }
+
+  function App() {
+    return (
+      <div className="relative">
+        <Toolbar />
+        <MiniNav />
+        <div className="py-8">
+          {PRACTICE.map((item, idx) => (
+            <div key={item.letter} id={`card-${item.letter}`}>
+              <Card item={item} idx={idx} total={PRACTICE.length} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  ReactDOM.render(<App />, document.getElementById("root"));
+</script>
+</body>
+</html>
